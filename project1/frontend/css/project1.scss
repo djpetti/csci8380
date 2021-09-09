@@ -1,0 +1,18 @@
+@use "@material/elevation/mdc-elevation";
+@use "colors";
+
+#main_app_bar {
+  --mdc-theme-primary: var(--theme-secondary-2);
+  --mdc-theme-on-primary: var(--theme-whitish);
+}
+
+body {
+  background-color: var(--theme-background);
+  margin: 0;
+}
+
+.center {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
