@@ -57,7 +57,10 @@
     "typescript": "^4.1.5"
   },
   "dependencies": {
+    "@material/mwc-button": "^0.22.1",
+    "@material/mwc-textfield": "^0.22.1",
     "@material/mwc-top-app-bar-fixed": "^0.22.1",
+    "materialize-css": "^1.0.0-rc.2",
     "typescript-axios": "file:gen/api"
   }
 }

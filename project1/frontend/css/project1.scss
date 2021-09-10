@@ -1,9 +1,16 @@
 @use "@material/elevation/mdc-elevation";
 @use "colors";
+@use "multi_column";
 
 #main_app_bar {
   --mdc-theme-primary: var(--theme-secondary-2);
   --mdc-theme-on-primary: var(--theme-whitish);
+}
+
+#search {
+  max-width: 1000px;
+  display: block;
+  margin-top: 1rem;
 }
 
 body {

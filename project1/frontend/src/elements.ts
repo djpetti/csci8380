@@ -1,4 +1,5 @@
 import { LitElement } from "lit-element";
+import { SearchWidget } from "./search-widget";
 type LitElementType = typeof LitElement;
 interface ComponentType extends LitElementType {
   /** Name of the element tag. */
@@ -6,7 +7,7 @@ interface ComponentType extends LitElementType {
 }
 
 /** List of all custom elements. */
-const componentClasses: ComponentType[] = [];
+const componentClasses: ComponentType[] = [SearchWidget];
 
 /**
  * Registers all known web components as custom elements.
