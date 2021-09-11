@@ -36,5 +36,5 @@ export default {
         }
     },
     plugins: [sourcemaps(), commonjs(), nodePolyfills(), resolve(), json(),
-              scss({sass: require('sass')})],
+        scss({sass: require('sass')})],
 };

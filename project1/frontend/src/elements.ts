@@ -1,6 +1,8 @@
 import { LitElement } from "lit-element";
 import { SearchWidget } from "./search-widget";
+
 type LitElementType = typeof LitElement;
+
 interface ComponentType extends LitElementType {
   /** Name of the element tag. */
   tagName: string;

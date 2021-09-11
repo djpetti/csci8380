@@ -16,7 +16,7 @@ export class SearchWidget extends LitElement {
     .full-width {
       width: 100%;
     }
-    
+
     #overview_text {
       color: var(--theme-gray);
       font-family: "Roboto", sans-serif;
@@ -46,9 +46,12 @@ export class SearchWidget extends LitElement {
   protected render() {
     return html`
       <link rel="stylesheet" href="../bundled/project1.css" />
-      <link type="text/css" rel="stylesheet"
-          href="../node_modules/materialize-css/dist/css/materialize.min.css"
-          media="screen,projection"/>
+      <link
+        type="text/css"
+        rel="stylesheet"
+        href="../node_modules/materialize-css/dist/css/materialize.min.css"
+        media="screen,projection"
+      />
 
       <!-- Search boxes -->
       <div class="row center">
@@ -82,12 +85,12 @@ export class SearchWidget extends LitElement {
           <mwc-button label="Search" icon="search"> </mwc-button>
         </div>
       </div>
-      
+
       <!-- Result overview -->
       <div class="row center">
-          <div class="column_width1">
-              <h1 id="overview_text">Possible Conflicts Found</h1>
-          </div>
+        <div class="column_width1">
+          <h1 id="overview_text">Possible Conflicts Found</h1>
+        </div>
       </div>
 
       <!-- Result table -->
