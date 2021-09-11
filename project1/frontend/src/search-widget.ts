@@ -45,11 +45,11 @@ export class SearchWidget extends LitElement {
    */
   protected render() {
     return html`
-      <link rel="stylesheet" href="../bundled/project1.css" />
+      <link rel="stylesheet" href="static/project1.css" />
       <link
         type="text/css"
         rel="stylesheet"
-        href="../node_modules/materialize-css/dist/css/materialize.min.css"
+        href="node_modules/materialize-css/dist/css/materialize.min.css"
         media="screen,projection"
       />
 
