@@ -1,0 +1,7 @@
+frontend/build
+frontend/bundled
+frontend/coverage
+frontend/gen
+frontend/node_modules
+
+target/

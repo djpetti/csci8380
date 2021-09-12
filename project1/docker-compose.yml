@@ -1,0 +1,13 @@
+version: '3.8'
+
+services:
+
+  # App service.
+  app:
+    build:
+      dockerfile: dockerfiles/Dockerfile
+      context: .
+      target: app
+    ports:
+      - "8080:8080"
+    hostname: app

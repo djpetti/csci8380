@@ -1,0 +1,17 @@
+version: '3.8'
+
+# Volumes that bind to local directories.
+x-local_volumes: &local_volumes
+  volumes:
+    # Web apps.
+    - ./target:/app/target
+
+# This is a docker-compose overlay for facilitating development.
+# Basically, it mounts your local web apps in the containers instead of
+# backing them into the container, so you can modify them without
+# rebuilding containers.
+services:
+
+  # Gateway service.
+  app:
+    << : *local_volumes
