@@ -1,0 +1,9 @@
+{
+  "npmName": "typescript-axios",
+  "npmVersion": "0.1.0",
+  "snapshot": false,
+  "supportsES6": true,
+  "modelPropertyNaming": "camelCase",
+  "enumPropertyNaming": "UPPERCASE",
+  "validateSpec": false
+}

@@ -5,8 +5,9 @@ import jakarta.ws.rs.Path;
 import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.QueryParam;
 import jakarta.ws.rs.core.MediaType;
-import org.json.JSONArray;
-import org.json.JSONObject;
+
+import java.util.ArrayList;
+import java.util.List;
 
 @Path("/check_names")
 public class NameCheckResource {
@@ -18,28 +19,21 @@ public class NameCheckResource {
      */
     @GET
     @Produces(MediaType.APPLICATION_JSON)
-    public String checkNames(@QueryParam("firstName") String firstName,
+    public ConflictCheckResult checkNames(@QueryParam("firstName") String firstName,
                              @QueryParam("secondName") String secondName) {
         // Example JSON response that this endpoint should provide.
-        JSONObject exampleResponse = new JSONObject();
-        // Level of conflict. Can be one of "strong", "medium", "low", or "none".
-        exampleResponse.put("level", "strong");
+        ConflictCheckResult result = new ConflictCheckResult();
+        result.setLevel(ConflictLevel.STRONG);
 
-        // If there are conflicts, this lists info about conflicting papers.
-        // Otherwise, this array should just be empty.
-        JSONArray papers = new JSONArray();
+        List<Paper> papers = new ArrayList<>();
+        Paper paper = new Paper();
+        paper.setName("Discussions on Things: A Survey");
+        paper.setYear(2021);
+        paper.setCitations(42);
 
-        JSONObject paper1 = new JSONObject();
-        // Name of the paper.
-        paper1.put("name", "Discussions on Things: A Survey");
-        // Year paper was published.
-        paper1.put("year", 2021);
-        // Number of times the paper has been cited.
-        paper1.put("citations", 42);
+        papers.add(paper);
+        result.setPapers(papers);
 
-        papers.put(paper1);
-        exampleResponse.put("papers", papers);
-
-        return exampleResponse.toString();
+        return result;
     }
 }
