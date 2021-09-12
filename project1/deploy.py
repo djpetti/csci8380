@@ -69,6 +69,48 @@ def _working_dir(new_dir: Path) -> Iterator[None]:
         os.chdir(current_dir.as_posix())
 
 
+@contextmanager
+def _servlet(war_path: Path) -> Iterator[None]:
+    """
+    Starts the backend servlet in a separate process.
+
+    Args:
+        war_path: The path to the WAR to deploy.
+    """
+    logger.debug("Starting the servlet.")
+    asadmin_path = _find_tool("asadmin")
+
+    # Start Glassfish.
+    subprocess.run([asadmin_path.as_posix(), "start-domain"], check=True)
+    try:
+        # Deploy the application.
+        with _working_dir(_REPO_ROOT):
+            subprocess.run(
+                [asadmin_path.as_posix(), "deploy", "--force", war_path.as_posix()],
+                check=True,
+            )
+
+        yield
+    finally:
+        logger.debug("Stopping the servlet.")
+        subprocess.run([asadmin_path.as_posix(), "stop-domain"], check=True)
+
+
+def _generate_api_client(war_path: Path) -> None:
+    """
+    Generates a TypeScript client for the gateway API.
+
+    Args:
+        war_path: The path to the WAR to deploy.
+    """
+    with _servlet(war_path), _working_dir(_FRONTEND_ROOT):
+        npm_path = _find_tool("npm")
+
+        # Generate the API client.
+        subprocess.run([npm_path.as_posix(), "run", "api"], check=True)
+        subprocess.run([npm_path.as_posix(), "install"], check=True)
+
+
 def _build_frontend(cli_args: Namespace) -> None:
     """
     Builds frontend code prior to deploying.
@@ -78,6 +120,11 @@ def _build_frontend(cli_args: Namespace) -> None:
 
     """
     logger.info("Building frontend code...")
+
+    # Generate the API, if specified.
+    if cli_args.war_path is not None:
+        with _working_dir(_REPO_ROOT):
+            _generate_api_client(Path(cli_args.war_path))
 
     with _working_dir(_FRONTEND_ROOT):
         npm_path = _find_tool("npm")
@@ -99,17 +146,19 @@ def _make_parser() -> ArgumentParser:
 
     """
     parser = ArgumentParser(description="Build and deploy to GAE.")
-    subparsers = parser.add_subparsers(
-        title="action", dest="action", required=True
-    )
+    subparsers = parser.add_subparsers(title="action", dest="action", required=True)
 
     build_parser = subparsers.add_parser("build", help="Build the frontend.")
     build_parser.add_argument(
         "-b",
         "--build-only",
         action="store_true",
-        help="Only builds the frontend, without linting or re-generating the"
-        " API client.",
+        help="Only builds the frontend, without linting or formatting.",
+    )
+    build_parser.add_argument(
+        "-w",
+        "--war-path",
+        help="Specifies a path to a WAR file. If there, it will use it to regenerate the API.",
     )
     build_parser.set_defaults(func=_build_frontend)
 
