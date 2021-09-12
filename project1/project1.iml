@@ -4,6 +4,9 @@
     <facet type="web" name="Web">
       <configuration>
         <webroots>
+          <root url="file://$MODULE_DIR$/frontend/html" relative="/" />
+          <root url="file://$MODULE_DIR$/frontend/bundled" relative="/static" />
+          <root url="file://$MODULE_DIR$/frontend/node_modules" relative="/node_modules" />
           <root url="file://$MODULE_DIR$/src/main/webapp" relative="/" />
         </webroots>
         <sourceRoots>
