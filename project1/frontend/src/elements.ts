@@ -1,5 +1,6 @@
 import { LitElement } from "lit-element";
 import { SearchWidget } from "./search-widget";
+import { PaperTable } from "./paper-table";
 
 type LitElementType = typeof LitElement;
 
@@ -9,7 +10,7 @@ interface ComponentType extends LitElementType {
 }
 
 /** List of all custom elements. */
-const componentClasses: ComponentType[] = [SearchWidget];
+const componentClasses: ComponentType[] = [SearchWidget, PaperTable];
 
 /**
  * Registers all known web components as custom elements.

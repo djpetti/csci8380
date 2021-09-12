@@ -1,6 +1,20 @@
-import { LitElement, html, css, property } from "lit-element";
+import {
+  css,
+  html,
+  LitElement,
+  property,
+  TemplateResult,
+  query,
+  PropertyValues,
+} from "lit-element";
 import "@material/mwc-textfield";
 import "@material/mwc-button";
+import { checkNames } from "./api-client";
+import {
+  ConflictCheckResult,
+  ConflictCheckResultLevelEnum,
+} from "typescript-axios";
+import { PaperTable } from "./paper-table";
 
 /**
  * Main element that handles searching and the display of results.
@@ -17,16 +31,32 @@ export class SearchWidget extends LitElement {
       width: 100%;
     }
 
-    #overview_text {
-      color: var(--theme-gray);
+    .hidden {
+      display: none;
+    }
+
+    .overview_common {
       font-family: "Roboto", sans-serif;
       font-weight: 100;
-      margin: auto;
+      margin-top: 2rem;
+      margin-left: auto;
+      margin-right: auto;
       width: 50%;
       text-align: center;
       font-size: x-large;
     }
+
+    .overview_conflicts {
+      color: var(--theme-primary);
+    }
+
+    .overview_no_conflicts {
+      color: var(--theme-gray);
+    }
   `;
+
+  // Minimum length we allow for names.
+  private static MIN_NAME_LENGTH: number = 3;
 
   /**
    * The name of the first researcher to check.
@@ -41,17 +71,77 @@ export class SearchWidget extends LitElement {
   secondName: string = "";
 
   /**
+   * Keeps track of the search results.
+   */
+  @property({ attribute: false })
+  private searchResults?: ConflictCheckResult;
+
+  /** Table of common papers. */
+  @query("#paper_table")
+  private paperTable?: PaperTable;
+
+  /**
+   * Runs a conflict-of-interest search on the two current names and updates
+   * the display with the result.
+   * @private
+   */
+  private search() {
+    checkNames(this.firstName, this.secondName).then((result) => {
+      this.searchResults = result;
+    });
+  }
+
+  /**
+   * Checks whether the currently-entered names are valid.
+   * @return {boolean} True if both names are valid.
+   * @private
+   */
+  private isSearchValid(): boolean {
+    return (
+      this.firstName.length >= SearchWidget.MIN_NAME_LENGTH &&
+      this.secondName.length >= SearchWidget.MIN_NAME_LENGTH
+    );
+  }
+
+  /**
+   * Gets the proper overview text for a specified conflict level.
+   * @return {TemplateResult} The overview text to use, or undefined if there are no search results.
+   * @private
+   */
+  private getOverviewText(): TemplateResult | undefined {
+    switch (this.searchResults?.level) {
+      case ConflictCheckResultLevelEnum.NONE: {
+        return html`<h1 class="overview_common overview_no_conflicts">
+          No Conflicts Found
+        </h1>`;
+      }
+      case ConflictCheckResultLevelEnum.LOW: {
+        return html`<h1 class="overview_common overview_conflicts">
+          Mild Conflicts Found
+        </h1>`;
+      }
+      case ConflictCheckResultLevelEnum.MEDIUM: {
+        return html`<h1 class="overview_common overview_conflicts">
+          Moderate Conflicts Found
+        </h1>`;
+      }
+      case ConflictCheckResultLevelEnum.STRONG: {
+        return html`<h1 class="overview_common overview_conflicts">
+          Severe Conflicts Found
+        </h1>`;
+      }
+    }
+  }
+
+  /**
    * @inheritDoc
    */
   protected render() {
+    // Class controlling the display of the results.
+    const resultDisplayClass = this.searchResults !== undefined ? "" : "hidden";
+
     return html`
       <link rel="stylesheet" href="static/project1.css" />
-      <link
-        type="text/css"
-        rel="stylesheet"
-        href="node_modules/materialize-css/dist/css/materialize.min.css"
-        media="screen,projection"
-      />
 
       <!-- Search boxes -->
       <div class="row center">
@@ -62,6 +152,7 @@ export class SearchWidget extends LitElement {
             class="full-width"
             helper="The name of the first researcher"
             value="${this.firstName}"
+            minLength="${SearchWidget.MIN_NAME_LENGTH}"
             @change="${(event: InputEvent) =>
               (this.firstName = (event.target as HTMLInputElement).value)}"
           ></mwc-textfield>
@@ -73,6 +164,7 @@ export class SearchWidget extends LitElement {
             class="full-width"
             helper="The name of the second researcher"
             value="${this.secondName}"
+            minLength="${SearchWidget.MIN_NAME_LENGTH}"
             @change="${(event: InputEvent) =>
               (this.secondName = (event.target as HTMLInputElement).value)}"
           ></mwc-textfield>
@@ -82,49 +174,40 @@ export class SearchWidget extends LitElement {
       <!-- Search button -->
       <div class="row center">
         <div class="column_width1">
-          <mwc-button label="Search" icon="search"> </mwc-button>
+          <mwc-button
+            label="Search"
+            icon="search"
+            @click="${this.search}"
+            ?disabled="${!this.isSearchValid()}"
+          >
+          </mwc-button>
         </div>
       </div>
 
       <!-- Result overview -->
-      <div class="row center">
-        <div class="column_width1">
-          <h1 id="overview_text">Possible Conflicts Found</h1>
-        </div>
+      <div class="row center ${resultDisplayClass}">
+        <div class="column_width1">${this.getOverviewText()}</div>
       </div>
 
       <!-- Result table -->
-      <div class="row center">
+      <div class="row center ${resultDisplayClass}">
         <div class="column_width1">
-          <table class="striped">
-            <thead>
-              <tr>
-                <th>Paper Name</th>
-                <th>Year</th>
-                <th># of Citations</th>
-              </tr>
-            </thead>
-
-            <tbody>
-              <tr>
-                <td>We Put a Camera Somewhere New</td>
-                <td>2019</td>
-                <td>150</td>
-              </tr>
-              <tr>
-                <td>Hey, I Found a Trove of Old Records!</td>
-                <td>2021</td>
-                <td>35</td>
-              </tr>
-              <tr>
-                <td>My Colleague is Wrong and I can Finally Prove It</td>
-                <td>2018</td>
-                <td>1032</td>
-              </tr>
-            </tbody>
-          </table>
+          <paper-table id="paper_table"></paper-table>
         </div>
       </div>
     `;
+  }
+
+  /**
+   * @inheritDoc
+   */
+  protected updated(_changedProperties: PropertyValues) {
+    if (
+      _changedProperties.has("searchResults") &&
+      this.paperTable !== undefined
+    ) {
+      // Update the table of papers.
+      this.paperTable.searchResults = this.searchResults;
+    }
   }
 }
