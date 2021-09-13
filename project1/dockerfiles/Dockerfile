@@ -26,8 +26,6 @@ RUN cd frontend && . ~/.nvm/nvm.sh && npm install
 # Build the backend.
 COPY src/ src/
 COPY pom.xml pom.xml
-# Create an empty "bundled" directory to bootstrap the build.
-RUN mkdir frontend/bundled
 RUN mvn verify
 
 # Build the frontend.

@@ -1,5 +1,5 @@
 frontend/build
-frontend/bundled
+frontend/bundled/*
 frontend/coverage
 frontend/gen
 frontend/node_modules
