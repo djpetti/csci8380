@@ -6,11 +6,15 @@ import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.QueryParam;
 import jakarta.ws.rs.core.MediaType;
 
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
 
 @Path("/check_names")
 public class NameCheckResource {
+	
     /**
      * Endpoint that checks if two researchers have a conflict-of-interest.
      * @param firstName The full name of the first researcher.
@@ -21,17 +25,32 @@ public class NameCheckResource {
     @Produces(MediaType.APPLICATION_JSON)
     public ConflictCheckResult checkNames(@QueryParam("firstName") String firstName,
                              @QueryParam("secondName") String secondName) {
-        // Example JSON response that this endpoint should provide.
+    	
+    	if(!KnowledgeGraph.graphIsLoaded()) {
+    		try {
+    			InputStream input = new FileInputStream("dblp-20170124.hdt");
+	    		KnowledgeGraph.load(input);
+    		} catch(IOException e) {
+    			System.out.println(e);
+    		}
+    	}
+    	
+    	// Example JSON response that this endpoint should provide.
         ConflictCheckResult result = new ConflictCheckResult();
-        result.setLevel(ConflictLevel.STRONG);
-
-        List<Paper> papers = new ArrayList<>();
-        Paper paper = new Paper();
-        paper.setName("Discussions on Things: A Survey");
-        paper.setYear(2021);
-        paper.setCitations(42);
-
-        papers.add(paper);
+        
+        List<Paper> papers;
+    	if(KnowledgeGraph.graphIsLoaded()) {
+            papers = KnowledgeGraph.findCOI(firstName, secondName);
+    	} else {
+    		papers = new ArrayList<Paper>();
+    	}
+        
+    	switch(papers.size()) {
+	    	case 0: result.setLevel(ConflictLevel.NONE); break;
+	    	case 1: result.setLevel(ConflictLevel.LOW); break;
+	    	case 2: result.setLevel(ConflictLevel.MEDIUM); break;
+	    	default: result.setLevel(ConflictLevel.STRONG); break;
+    	}
         result.setPapers(papers);
 
         return result;
