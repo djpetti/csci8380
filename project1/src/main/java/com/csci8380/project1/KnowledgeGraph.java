@@ -50,21 +50,16 @@ public class KnowledgeGraph {
 
         /* SPARQL query sentences */
         Query query_1 = QueryFactory.create(
-                "SELECT ?o1 ?o2 WHERE {"
-                + "  ?x <http://purl.org/dc/elements/1.1/title> ?o1 ."
-                + "  ?x <http://purl.org/dc/terms/issued> ?o2 ."
-                + "  {"
-                + "	SELECT DISTINCT ?x WHERE {"
-                + "	  ?x <http://xmlns.com/foaf/0.1/maker> ?y ."
-                + "	  ?x <http://xmlns.com/foaf/0.1/maker> ?z ."
-                + "      {"
-                + "		SELECT ?y ?z WHERE {"
-                + "		  ?y <http://xmlns.com/foaf/0.1/name> \"" + author_1  + "\" ."
-                + "		  ?z <http://xmlns.com/foaf/0.1/name> \"" + author_2  + "\" ."
-                + "		}"
-                + "	  }"
-                + "	}"
-                + "  }"
+                "PREFIX elements: <http://purl.org/dc/elements/1.1/>"
+                + " PREFIX terms: <http://purl.org/dc/terms/>"
+                + " PREFIX foaf: <http://xmlns.com/foaf/0.1/>"
+                + " SELECT ?title ?year WHERE {"
+                + "  ?paper elements:title ?title ."
+                + "  ?paper terms:issued ?year ."
+                + "  ?paper foaf:maker ?person1 ."
+                + "  ?paper foaf:maker ?person2 ."
+                + "  ?person1 foaf:name \"" + author_1 + "\" ."
+                + "  ?person2 foaf:name \"" + author_2 + "\" ."
                 + "}",
                 Syntax.syntaxSPARQL_11
         );
