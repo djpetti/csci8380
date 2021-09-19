@@ -9,6 +9,7 @@ import {
 } from "lit-element";
 import "@material/mwc-textfield";
 import "@material/mwc-button";
+import "@material/mwc-linear-progress";
 import { checkNames } from "./api-client";
 import {
   ConflictCheckResult,
@@ -76,6 +77,10 @@ export class SearchWidget extends LitElement {
   @property({ attribute: false })
   private searchResults?: ConflictCheckResult;
 
+  /** Whether a search is currently in-progress. */
+  @property({ attribute: false })
+  private isSearching: boolean = false;
+
   /** Table of common papers. */
   @query("#paper_table")
   private paperTable?: PaperTable;
@@ -86,8 +91,11 @@ export class SearchWidget extends LitElement {
    * @private
    */
   private search() {
+    this.isSearching = true;
+
     checkNames(this.firstName, this.secondName).then((result) => {
       this.searchResults = result;
+      this.isSearching = false;
     });
   }
 
@@ -139,6 +147,10 @@ export class SearchWidget extends LitElement {
   protected render() {
     // Class controlling the display of the results.
     const resultDisplayClass = this.searchResults !== undefined ? "" : "hidden";
+    // Class controlling the display of the search button.
+    const searchDisplayClass = this.isSearching ? "hidden" : "";
+    // Class controlling the display of the loading indicator.
+    const loadingDisplayClass = this.isSearching ? "" : "hidden";
 
     return html`
       <link rel="stylesheet" href="static/project1.css" />
@@ -171,16 +183,23 @@ export class SearchWidget extends LitElement {
         </div>
       </div>
 
-      <!-- Search button -->
       <div class="row center">
         <div class="column_width1">
+          <!-- Search button -->
           <mwc-button
             label="Search"
             icon="search"
             @click="${this.search}"
             ?disabled="${!this.isSearchValid()}"
+            class="${searchDisplayClass}"
           >
           </mwc-button>
+
+          <!-- Loading indicator -->
+          <mwc-linear-progress
+            indeterminate
+            class="${loadingDisplayClass}"
+          ></mwc-linear-progress>
         </div>
       </div>
 

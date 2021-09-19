@@ -44,7 +44,6 @@ export class PaperTable extends LitElement {
                 <div class="scrollable">${paper.name}</div>
               </td>
               <td>${paper.year}</td>
-              <td>${paper.citations}</td>
             </tr>
           `
         )}
@@ -73,7 +72,6 @@ export class PaperTable extends LitElement {
           <tr>
             <th>Paper Name</th>
             <th>Year</th>
-            <th># of Citations</th>
           </tr>
         </thead>
 

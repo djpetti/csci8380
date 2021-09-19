@@ -60,7 +60,8 @@ public class KnowledgeGraph {
                 + "  ?paper foaf:maker ?person2 ."
                 + "  ?person1 foaf:name \"" + author_1 + "\" ."
                 + "  ?person2 foaf:name \"" + author_2 + "\" ."
-                + "}",
+                + "}"
+                + " ORDER BY DESC(?year)",
                 Syntax.syntaxSPARQL_11
         );
 
