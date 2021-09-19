@@ -27,8 +27,9 @@ public class NameCheckResource {
                              @QueryParam("secondName") String secondName) {
     	
     	if(!KnowledgeGraph.graphIsLoaded()) {
+			String dblpPath = System.getProperty("dblp.path", "dblp-20170124.hdt");
     		try {
-    			InputStream input = new FileInputStream("dblp-20170124.hdt");
+    			InputStream input = new FileInputStream(dblpPath);
 	    		KnowledgeGraph.load(input);
     		} catch(IOException e) {
     			System.out.println(e);

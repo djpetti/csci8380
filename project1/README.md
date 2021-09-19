@@ -56,3 +56,10 @@ where to obtain the OpenAPI spec from:
 ```
 python deploy.py build -w /target/project1-1.0-SNAPSHOT.war
 ```
+
+### DBLP Data
+
+This app requires the DBLP dataset to be available locally in order to run.
+You can download it from [here](http://downloads.linkeddatafragments.org/hdt/dblp-20170124.hdt).
+
+The app can be notified of the location of this file through a JVM argument: `-Ddblp.path=/path/to/hdt/file`
