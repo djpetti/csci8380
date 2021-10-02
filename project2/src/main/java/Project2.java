@@ -36,10 +36,13 @@ public class Project2 {
 
     /**
      * Prints a usage message and exits the program.
-     *
      */
     private static void printUsageAndExit() {
-        System.out.println("Usage:\n program2 tweets.json");
+        System.out.println("""
+                Usage:
+                 program2 [-p] tweets.json
+                 \t-p: Use the production instead of the sandbox environment.
+                 """);
         System.exit(1);
     }
 
@@ -62,13 +65,18 @@ public class Project2 {
     }
 
     public static void main(final String @NotNull [] args) {
-        if (args.length != 1) {
+        if (args.length != 1 && args.length != 2) {
             printUsageAndExit();
+        }
+
+        String tweetFile = args[0];
+        Boolean useProduction = args[0].equals("-p");
+        if (useProduction) {
+            tweetFile = args[1];
         }
 
         // Load the tweets from the file.
         ArrayList<String> tweets;
-        final String tweetFile = args[0];
         try {
             tweets = TweetLoader.loadTweets(tweetFile);
         } catch (IOException e) {
@@ -78,11 +86,11 @@ public class Project2 {
         }
 
         // Create the actual HITs.
-        AmazonMTurk client = getSandboxClient();
+        final AmazonMTurk client = useProduction ? getProdClient() : getSandboxClient();
         HitCreator hitCreator = new HitCreator(client);
         TemplateHitMaker templateHitMaker;
         try {
-            templateHitMaker = new TemplateHitMaker(XML_TEMPLATE, HTML_TEMPLATE, hitCreator);
+            templateHitMaker = new TemplateHitMaker(XML_TEMPLATE, HTML_TEMPLATE, hitCreator, useProduction);
         } catch (IOException e) {
             System.err.println("Could not read from template file: " + XML_TEMPLATE);
             printUsageAndExit();
