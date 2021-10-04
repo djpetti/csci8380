@@ -64,11 +64,11 @@ public class HitCreator {
         localeRequirement.setLocaleValues(localeValues);
 
         CreateHITRequest request = new CreateHITRequest();
-        request.setMaxAssignments(10);
-        request.setLifetimeInSeconds(600L);
-        request.setAssignmentDurationInSeconds(600L);
-        // Reward is a USD dollar amount - USD$0.20 in the example below
-        request.setReward("0.20");
+        request.setMaxAssignments(3);
+        request.setLifetimeInSeconds(172800L); // 2 days
+        request.setAssignmentDurationInSeconds(600L); // 10 minutes
+        // Reward is a USD dollar amount - USD$0.01 in the example below
+        request.setReward("0.01");
         request.setTitle("Determine if tweets contain COVID misinformation");
         request.setKeywords("covid, research, twitter");
         request.setDescription("Indicate whether the specified tweet contains misinformation about COVID-19.");
