@@ -1,0 +1,68 @@
+CREATE (DB07428:Drug {drugbank_id:'DB07428', name:'4-[(5-methoxy-2-methylphenoxy)methyl]pyridine', synonyms:'4-[(5-methoxy-2-methylphenoxy)methyl]pyridine'})
+CREATE (Experimental:DrugGroup {drug_groups:'experimental'})
+CREATE (HemoSA:InteractionType {name:'Hemoglobin subunit alpha', interaction_type:'target', ordinal:'1', organism_common_name:'Humans', seq_one_letter_code:'MVLSPADKTNVKAAWGKVGAHAGEYGAEALERMFLSFPTTKTYFPHFDLSHGSAQVKGHGKKVADALTNAVAHVDDMPNALSALSDLHAHKLRVDPVNFKLLSHCLLVTLAAHLPAEFTPAVHASLDKFLASVSTVLTSKYR'})
+CREATE (HemoSB:InteractionType {name:'Hemoglobin subunit beta', interaction_type:'target', ordinal:'2', organism_common_name:'Humans', seq_one_letter_code:'MVHLTPEEKSAVTALWGKVNVDEVGGEALGRLLVVYPWTQRFFESFGDLSTPDAVMGNPKVKAHGKKVLGAFSDGLAHLDNLKGTFATLSELHCDKLHVDPENFRLLGNVLVCVLAHHFGKEFTPPVQAAYQKVVAGVANALAHKYH'})
+CREATE (UniProt:Database {name:'UniProt'})
+
+CREATE 
+(DB07428)-[:BELONG_TO]->(Experimental),
+(DB07428)-[:TARGET_TO]->(HemoSA),
+(DB07428)-[:TARGET_TO]->(HemoSB),
+(HemoSA)-[:REFER_TO {reference_database_accession_code:['P69905']}]->(UniProt),
+(HemoSB)-[:REFER_TO {reference_database_accession_code:['P68871']}]->(UniProt)
+
+
+CREATE (Polymer:Poly {nstd_linkage:'no', nstd_monomer:'no', pdbx_seq_one_letter_code:'MVLSPADKTNVKAAWGKVGAHAGEYGAEALERMFLSFPTTKTYFPHFDLSHGSAQVKGHGKKVADALTNAVAHVDDMPNALSALSDLHAHKLRVDPVNFKLLSHCLLVTLAAHLPAEFTPAVHASLDKFLASVSTVLTSKYR', pdbx_seq_one_letter_code_can:'MVLSPADKTNVKAAWGKVGAHAGEYGAEALERMFLSFPTTKTYFPHFDLSHGSAQVKGHGKKVADALTNAVAHVDDMPNALSALSDLHAHKLRVDPVNFKLLSHCLLVTLAAHLPAEFTPAVHASLDKFLASVSTVLTSKYR', pdbx_strand_id:'B,D', rcsb_artifact_monomer_count:'1', rcsb_conflict_count:'0', rcsb_deletion_count:'0', rcsb_entity_polymer_type:'Protein', rcsb_insertion_count:'0', rcsb_mutation_count:'0', rcsb_non_std_monomer_count:'0', rcsb_sample_sequence_length:'142', type:'polypeptide(L)'})
+
+CREATE (genus:Genus  {gene_src_common_name:'human', gene_src_genus:'Homo', host_org_genus:'Escherichia', pdbx_alt_source_flag:'sample', pdbx_gene_src_gene:'HBA1', pdbx_gene_src_ncbi_taxonomy_id:'9606', pdbx_gene_src_scientific_name:'Homo sapiens', pdbx_host_org_ncbi_taxonomy_id:'562', pdbx_host_org_scientific_name:'Escherichia coli', pdbx_src_id:'1'})
+
+CREATE (ho:HostOrganism {ncbi_common_names:'["Bacillus coli","Bacterium coli","Bacterium coli commune","E. coli","Enterococcus coli","Escherichia/Shigella coli"]', ncbi_parent_scientific_name:'Bacteria', ncbi_scientific_name:'Escherichia coli'})
+
+CREATE (so:SourceOrganism {common_name:'human', ncbi_common_names:'human', ncbi_parent_scientific_name:'Eukaryota'})
+
+CREATE (pe:PolymerEntity {formula_weight:'15.282', pdbx_description:'Hemoglobin alpha chain', pdbx_number_of_molecules:'2'})
+
+CREATE (pea:PolymerEntityAlign {provenance_source:'SIFTS', reference_database_accession:'P69905', reference_database_name:'UniProt', aligned_regions:'[entity_beg_seq_id:1, length:142, ref_beg_seq_id:1]'})
+
+CREATE (PF00042:PolymerEntityAnnotation {annotation_id:'PF00042', assignment_version:'34.0', name:'Globin (Globin)'})
+
+CREATE (peci:PolymerEntityContainerIdentifiers {asym_ids:'["B","D"]', auth_asym_ids: '["B","D"]', chem_comp_monomers:'["ALA","ARG","ASN","ASP","CYS","GLN","GLU","GLY","HIS","LEU","LYS","MET","PHE","PRO","SER","THR","TRP","TYR","VAL"]'})
+
+CREATE (pef:PolymerEntityFeature {assignment_version:'34.0', feature_id:'PF00042', name:'Globin (Globin)'})
+
+CREATE (pefs:PolymerEntityFeatureSummary {count:'0', coverage:'0.0', type:'CARD_MODEL'})
+
+CREATE (rtr:RelatedTargetReferences {related_resource_name:'ChEMBL', related_resource_version:'29', related_target_id:'CHEMBL2095168'})
+
+CREATE (DB00893:TargetCofactors {cofactor_name:'Iron Dextran', cofactor_resource_id:'DB00893', mechanism_of_action:'After iron dextran is injected, the circulating iron dextran is removed from the plasma by cells of the reticuloendothelial system, which split the complex into its components of iron and dextran. The iron is immediately bound to the available protein moieties to form hemosiderin or ferritin, the physiological forms of iron, or to a lesser extent to transferrin. This iron which is subject to physiological control replenishes hemoglobin and depleted iron stores.'})
+
+CREATE (OneZ8U_2:RCSBID {rcsb_id:'1Z8U_2'})
+
+CREATE (Nine606:GenomicLineage {id:'9606', name:'Homo sapiens (man)', depth:'0'})
+
+CREATE (cf:ClusterFlexibility {link:'http://pdbflex.org/cluster.html#!/1babA/252/1z8uB', label:'Low', avg_rmsd:'0.738', max_rmsd:'4.392', provenance_code:'PDBFlex'})
+
+CREATE (lr:LatestRevision {major_revision:'1', minor_revision:'3'})
+
+CREATE 
+(peci)-[:Belong_To]->(Polymer),
+(peci)-[:TARGET_TO]->(genus),
+(peci)-[:TARGET_TO]->(ho),
+(peci)-[:TARGET_TO]->(so),
+(peci)-[:TARGET_TO]->(pe),
+(peci)-[:TARGET_TO]->(pea),
+(peci)-[:TARGET_TO]->(PF00042),
+(peci)-[:TARGET_TO]->(peci),
+(peci)-[:TARGET_TO]->(pef),
+(peci)-[:TARGET_TO]->(pefs),
+(peci)-[:TARGET_TO]->(rtr),
+(peci)-[:TARGET_TO]->(DB00893),
+(peci)-[:TARGET_TO]->(OneZ8U_2),
+(peci)-[:TARGET_TO]->(Nine606),
+(peci)-[:TARGET_TO]->(cf),
+(peci)-[:TARGET_TO]->(lr),
+(Polymer)-[:TARGET_TO]->(HemoSA)
+
+
+WITH DB07428 as a
+MATCH (b)<-[:BELONG_TO]-(a)-[:TARGET_TO]->(c)<-[:TARGET_TO]-(e)<-[:Belong_To]-(f)-[:TARGET_TO]->(g) RETURN a,b,c,e,f,g;
