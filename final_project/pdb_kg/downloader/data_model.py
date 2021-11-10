@@ -3,8 +3,9 @@ Contains the data model used by this application.
 """
 
 
+import abc
 import enum
-from typing import Set, List
+from typing import Optional, Set, Tuple, List
 
 from pydantic import BaseModel
 
@@ -27,17 +28,67 @@ class Label(enum.IntEnum):
     """
     Indicates that a node represents a drug.
     """
+    ENTRY = enum.auto()
+    """
+    Indicates that a node represents a PDB entry.
+    """
 
 
-class NodeMixin:
+class NodeMixin(abc.ABC):
     """
     Mixin class that allows us to define the model for a node in Neo4J.
     """
 
-    LABEL = Label.NONE
+    @property
+    @abc.abstractmethod
+    def label(self) -> Label:
+        """
+        Returns:
+            The label of the node.
+        """
+
+
+class Publication(BaseModel):
     """
-    Node label.
+    Represents a publication.
+
+    Attributes:
+        title: The title of the publication.
+        authors: The full names of the authors of the publication, in order.
+        year: The year that this was published.
+
     """
+
+    title: str
+    authors: Tuple[str, ...]
+    year: Optional[int]
+
+
+class EntryCommon(BaseModel):
+    """
+    Represents a single PDB entry.
+
+    Attributes:
+        entry_id: The corresponding entry ID in PDB.
+        protein_entity_ids: The IDs of all the child protein entities under
+            this entry.
+
+    """
+
+    entry_id: str
+    protein_entity_ids: Set[str]
+
+    publications: Tuple[Publication, ...]
+
+
+class EntryNode(EntryCommon, NodeMixin):
+    """
+    A node representing a publication in the graph database.
+    """
+
+    @property
+    def label(self) -> Label:
+        return Label.ENTRY
 
 
 class Entity(BaseModel):
@@ -59,6 +110,8 @@ class ProteinCommon(Entity):
     Common fields for all representations of a protein.
 
     Attributes:
+        entry_id: The ID of the parent PDB entry for this protein.
+
         sequence: The sequence of the protein, in FASTA notation.
 
         annotations: Gene ontology annotations that are associated with this
@@ -66,6 +119,8 @@ class ProteinCommon(Entity):
         cofactors: Resource IDs of all associated cofactors for this protein.
 
     """
+
+    entry_id: str
 
     sequence: str
 
@@ -78,7 +133,9 @@ class ProteinNode(ProteinCommon, NodeMixin):
     A node representing a protein in the graph database.
     """
 
-    LABEL = Label.PROTEIN
+    @property
+    def label(self) -> Label:
+        return Label.PROTEIN
 
 
 class DrugGroup(Entity):
@@ -98,7 +155,9 @@ class DrugbankInfo(DrugGroup, NodeMixin):
     A node representing a drug in the graph database.
     """
 
-    LABEL = Label.DRUG
+    @property
+    def label(self) -> Label:
+        return Label.DRUG
 
     drugbank_id: str
     name: str

@@ -10,6 +10,7 @@ python = "~3.9"
 aiohttp = "^3.7.4"
 pydantic = "^1.8.2"
 ontobio = "^2.7.12"
+loguru = "^0.5.3"
 
 [tool.poetry.dev-dependencies]
 black = "^20.8b1"
