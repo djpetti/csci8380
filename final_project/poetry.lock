@@ -526,6 +526,17 @@ optional = false
 python-versions = "*"
 
 [[package]]
+name = "neo4j"
+version = "4.4.0"
+description = "Neo4j Bolt driver for Python"
+category = "main"
+optional = false
+python-versions = ">=3.5"
+
+[package.dependencies]
+pytz = "*"
+
+[[package]]
 name = "networkx"
 version = "2.6.3"
 description = "Python package for creating and manipulating graphs and networks"
@@ -1294,7 +1305,7 @@ testing = ["pytest (>=4.6)", "pytest-checkdocs (>=2.4)", "pytest-flake8", "pytes
 [metadata]
 lock-version = "1.1"
 python-versions = "~3.9"
-content-hash = "0dad79cb651359c94af56a4dcb0c186ddbe032ab9e03e7f23965ddafd5846870"
+content-hash = "da5ee977e69a519e1967d7641e24fd7c88aaa43288c8d4fdfcc4d109747712a4"
 
 [metadata.files]
 aiohttp = [
@@ -1746,6 +1757,9 @@ multidict = [
 mypy-extensions = [
     {file = "mypy_extensions-0.4.3-py2.py3-none-any.whl", hash = "sha256:090fedd75945a69ae91ce1303b5824f428daf5a028d2f6ab8a299250a846f15d"},
     {file = "mypy_extensions-0.4.3.tar.gz", hash = "sha256:2d82818f5bb3e369420cb3c4060a7970edba416647068eb4c5343488a6c604a8"},
+]
+neo4j = [
+    {file = "neo4j-4.4.0.tar.gz", hash = "sha256:7fac86ecd4191248030a2bf7822547207648ed8e0ee38cf10bbd7c7dc6ca596f"},
 ]
 networkx = [
     {file = "networkx-2.6.3-py3-none-any.whl", hash = "sha256:80b6b89c77d1dfb64a4c7854981b60aeea6360ac02c6d4e4913319e0a313abef"},

@@ -3,11 +3,11 @@ Contains the data model used by this application.
 """
 
 
-import abc
 import enum
-from typing import Optional, Set, Tuple, List
+from typing import List, Optional, Set, Tuple
+from uuid import UUID, uuid4
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 @enum.unique
@@ -32,20 +32,24 @@ class Label(enum.IntEnum):
     """
     Indicates that a node represents a PDB entry.
     """
-
-
-class NodeMixin(abc.ABC):
+    ANNOTATION = enum.auto()
     """
-    Mixin class that allows us to define the model for a node in Neo4J.
+    Indicates that a node represents an ontology annotation.
     """
 
-    @property
-    @abc.abstractmethod
-    def label(self) -> Label:
-        """
-        Returns:
-            The label of the node.
-        """
+
+class NodeBase(BaseModel):
+    """
+    Contains attributes shared by all models representing Neo4J nodes.
+
+    Attributes:
+        uuid: Unique identifier used by the graph DB to identify this node.
+        label: The label of this node.
+
+    """
+
+    uuid: UUID = Field(default_factory=uuid4)
+    label: Label
 
 
 class Publication(BaseModel):
@@ -64,9 +68,9 @@ class Publication(BaseModel):
     year: Optional[int]
 
 
-class EntryCommon(BaseModel):
+class EntryNode(NodeBase):
     """
-    Represents a single PDB entry.
+    A node representing a PDB entry in the graph database.
 
     Attributes:
         entry_id: The corresponding entry ID in PDB.
@@ -75,23 +79,15 @@ class EntryCommon(BaseModel):
 
     """
 
+    label: Label = Label.ENTRY
+
     entry_id: str
     protein_entity_ids: Set[str]
 
     publications: Tuple[Publication, ...]
 
 
-class EntryNode(EntryCommon, NodeMixin):
-    """
-    A node representing a publication in the graph database.
-    """
-
-    @property
-    def label(self) -> Label:
-        return Label.ENTRY
-
-
-class Entity(BaseModel):
+class Entity(NodeBase):
     """
     Common basic entity class for all data sources.
 
@@ -105,9 +101,9 @@ class Entity(BaseModel):
     name: str
 
 
-class ProteinCommon(Entity):
+class ProteinNode(Entity):
     """
-    Common fields for all representations of a protein.
+    A node representing a protein in the graph database.
 
     Attributes:
         entry_id: The ID of the parent PDB entry for this protein.
@@ -120,6 +116,8 @@ class ProteinCommon(Entity):
 
     """
 
+    label: Label = Label.PROTEIN
+
     entry_id: str
 
     sequence: str
@@ -128,40 +126,34 @@ class ProteinCommon(Entity):
     cofactors: Set[str]
 
 
-class ProteinNode(ProteinCommon, NodeMixin):
+class DrugNode(Entity):
     """
-    A node representing a protein in the graph database.
-    """
-
-    @property
-    def label(self) -> Label:
-        return Label.PROTEIN
-
-
-class DrugGroup(Entity):
-    """
-    Common fields for all representations of a drug.
+    A node representing a drug entity in the graph database.
 
     Attributes:
         drug_groups: Represents the drug groups that this entity belongs to.
+        synonyms: Synonymous names for the drug.
 
     """
+
+    label: Label = Label.DRUG
 
     drug_groups: Set[str]
-
-
-class DrugbankInfo(DrugGroup, NodeMixin):
-    """
-    A node representing a drug in the graph database.
-    """
-
-    @property
-    def label(self) -> Label:
-        return Label.DRUG
-
-    drugbank_id: str
-    name: str
     synonyms: Set[str]
+
+
+class AnnotationNode(Entity):
+    """
+    A node representing an ontology annotation in the graph database.
+
+    Attributes:
+        description: The description of the annotation.
+
+    """
+
+    label: Label = Label.ANNOTATION
+
+    description: str
 
 
 class DrugbankTarget:
@@ -186,18 +178,14 @@ class Database:
 
 
 class RcsbClusterMembership:
-    """
-
-    """
+    """"""
 
     cluster_id: int
     identity: int
 
 
 class EntityPoly:
-    """
-
-    """
+    """"""
 
     nstd_linkage: str
     nstd_monomer: str
@@ -216,9 +204,7 @@ class EntityPoly:
 
 
 class EntitySrcGen:
-    """
-
-    """
+    """"""
 
     gene_src_common_name: str
     gene_src_genus: str
@@ -233,9 +219,7 @@ class EntitySrcGen:
 
 
 class RcsbEntityHostOrganism:
-    """
-
-    """
+    """"""
 
     ncbi_common_names: Set[str]
     ncbi_parent_scientific_name: str
@@ -247,9 +231,7 @@ class RcsbEntityHostOrganism:
 
 
 class TaxonomyLineageOfRcsbEntityHostOrganism(RcsbEntityHostOrganism):
-    """
-
-    """
+    """"""
 
     depth: int
     id: str
@@ -257,9 +239,7 @@ class TaxonomyLineageOfRcsbEntityHostOrganism(RcsbEntityHostOrganism):
 
 
 class RcsbEntitySourceOrganism:
-    """
-
-    """
+    """"""
 
     common_name: str
     ncbi_common_names: Set[str]
@@ -273,9 +253,7 @@ class RcsbEntitySourceOrganism:
 
 
 class TaxonomyLineageOfRcsbEntitySourceOrganism(RcsbEntitySourceOrganism):
-    """
-
-    """
+    """"""
 
     depth: int
     id: str
@@ -283,18 +261,14 @@ class TaxonomyLineageOfRcsbEntitySourceOrganism(RcsbEntitySourceOrganism):
 
 
 class RcsbGeneNameOfRcsbEntitySourceOrganism(RcsbEntitySourceOrganism):
-    """
-
-    """
+    """"""
 
     provenance_source: str
     value: str
 
 
 class RcsbPolymerEntity:
-    """
-
-    """
+    """"""
 
     formula_weight: float
     pdbx_description: str
@@ -306,9 +280,7 @@ class RcsbPolymerEntity:
 
 
 class RcsbMacromolecularNamesCombinedOfRcsbPolymerEntity(RcsbPolymerEntity):
-    """
-
-    """
+    """"""
 
     name: str
     provenance_code: str
@@ -316,9 +288,7 @@ class RcsbMacromolecularNamesCombinedOfRcsbPolymerEntity(RcsbPolymerEntity):
 
 
 class RcsbPolymerEntityAlign:
-    """
-
-    """
+    """"""
 
     provenance_source: str
     reference_database_accession: str
@@ -326,9 +296,7 @@ class RcsbPolymerEntityAlign:
 
 
 class AlignedRegionsOfRcsbPolymerEntityAlign(RcsbPolymerEntityAlign):
-    """
-
-    """
+    """"""
 
     entity_beg_seq_id: int
     length: int
@@ -336,9 +304,7 @@ class AlignedRegionsOfRcsbPolymerEntityAlign(RcsbPolymerEntityAlign):
 
 
 class RcsbPolymerEntityAnnotation:
-    """
-
-    """
+    """"""
 
     annotation_id: str
     assignment_version: str
@@ -347,19 +313,17 @@ class RcsbPolymerEntityAnnotation:
     type: str
 
 
-class AnnotationLineageOfRcsbPolymerEntityAnnotation(RcsbPolymerEntityAnnotation):
-    """
-
-    """
+class AnnotationLineageOfRcsbPolymerEntityAnnotation(
+    RcsbPolymerEntityAnnotation
+):
+    """"""
 
     id: str
     name: str
 
 
 class RcsbPolymerEntityContainerIdentifiers:
-    """
-
-    """
+    """"""
 
     asym_ids: Set[str]
     auth_asym_ids: Set[str]
@@ -370,10 +334,10 @@ class RcsbPolymerEntityContainerIdentifiers:
     uniprot_ids: Set[str]
 
 
-class ReferenceSequenceIdentifiersOfRcsbPolymerEntityContainerIdentifiers(RcsbPolymerEntityContainerIdentifiers):
-    """
-
-    """
+class ReferenceSequenceIdentifiersOfRcsbPolymerEntityContainerIdentifiers(
+    RcsbPolymerEntityContainerIdentifiers
+):
+    """"""
 
     database_accession: str
     database_name: str
@@ -381,9 +345,7 @@ class ReferenceSequenceIdentifiersOfRcsbPolymerEntityContainerIdentifiers(RcsbPo
 
 
 class RcsbPolymerEntityFeature:
-    """
-
-    """
+    """"""
 
     assignment_version: str
     feature_id: str
@@ -393,9 +355,7 @@ class RcsbPolymerEntityFeature:
 
 
 class FeaturePositionsOfRcsbPolymerEntityFeature(RcsbPolymerEntityFeature):
-    """
-
-    """
+    """"""
 
     beg_seq_id: int
     end_seq_id: int
@@ -403,18 +363,16 @@ class FeaturePositionsOfRcsbPolymerEntityFeature(RcsbPolymerEntityFeature):
 
 
 class RcsbPolymerEntityFeatureSummary:
-    """
+    """"""
 
-    """
     count: int
     coverage: float
     type: str
 
 
 class RcsbRelatedTargetReferences:
-    """
+    """"""
 
-    """
     related_resource_name: str
     related_resource_version: int
     related_target_id: str
@@ -422,9 +380,7 @@ class RcsbRelatedTargetReferences:
 
 
 class AlignedTargetOfRcsbRelatedTargetReferences(RcsbRelatedTargetReferences):
-    """
-
-    """
+    """"""
 
     entity_beg_seq_id: int
     length: int
@@ -432,9 +388,7 @@ class AlignedTargetOfRcsbRelatedTargetReferences(RcsbRelatedTargetReferences):
 
 
 class RcsbTargetCofactors:
-    """
-
-    """
+    """"""
 
     cofactor_name: str
     cofactor_resource_id: str
@@ -450,17 +404,13 @@ class RcsbTargetCofactors:
 
 
 class RcsbId:
-    """
-
-    """
+    """"""
 
     rcsb_id: str
 
 
 class RcsbGenomicLineage:
-    """
-
-    """
+    """"""
 
     id: str
     name: str
@@ -468,9 +418,7 @@ class RcsbGenomicLineage:
 
 
 class RcsbClusterFlexibility:
-    """
-
-    """
+    """"""
 
     link: str
     label: str
@@ -480,9 +428,7 @@ class RcsbClusterFlexibility:
 
 
 class RcsbLatestRevision:
-    """
-
-    """
+    """"""
 
     major_revision: int
     minor_revision: int
