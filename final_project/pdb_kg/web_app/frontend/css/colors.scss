@@ -1,0 +1,44 @@
+/* Custom color scheme. */
+:root {
+  --theme-primary: hsl(157, 96%, 56%);
+  --theme-secondary-1: hsl(181, 77%, 58%);
+  --theme-secondary-2: hsl(133, 80%, 51%);
+  --theme-secondary-1-light: hsl(203, 92%, 76%);
+  --theme-secondary-2-light: hsl(107, 100%, 72%);
+
+  --theme-blackish: hsl(157, 96%, 15%);
+  --theme-whitish: hsl(107, 50%, 98%);
+  --theme-background: var(--theme-whitish);
+  --theme-gray: hsl(107, 10%, 70%);
+  --theme-light-gray: hsl(107, 10%, 90%);
+  --theme-lighter-gray: hsl(107, 10%, 95%);
+}
+
+mwc-fab {
+  --mdc-theme-secondary: var(--theme-blackish);
+  --mdc-theme-on-secondary: var(--theme-whitish);
+}
+
+mwc-radio {
+  --mdc-theme-secondary: var(--theme-primary);
+}
+
+mwc-dialog {
+  --mdc-dialog-heading-ink-color: var(--theme-blackish);
+}
+
+mwc-button {
+  --mdc-theme-primary: var(--theme-primary)
+}
+
+mwc-circular-progress {
+  --mdc-theme-primary: var(--theme-primary)
+}
+
+mwc-textfield {
+  --mdc-theme-primary: var(--theme-primary)
+}
+
+mwc-textarea {
+  --mdc-theme-primary: var(--theme-primary)
+}

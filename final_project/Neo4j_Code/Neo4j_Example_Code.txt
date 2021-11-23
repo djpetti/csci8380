@@ -1,10 +1,10 @@
 CREATE (DB07428:Drug {drugbank_id:'DB07428', name:'4-[(5-methoxy-2-methylphenoxy)methyl]pyridine', synonyms:'4-[(5-methoxy-2-methylphenoxy)methyl]pyridine'})
-CREATE (Experimental:DrugGroup {drug_groups:'experimental'})
+CREATE (Experimental:DrugCommon {drug_groups:'experimental'})
 CREATE (HemoSA:InteractionType {name:'Hemoglobin subunit alpha', interaction_type:'target', ordinal:'1', organism_common_name:'Humans', seq_one_letter_code:'MVLSPADKTNVKAAWGKVGAHAGEYGAEALERMFLSFPTTKTYFPHFDLSHGSAQVKGHGKKVADALTNAVAHVDDMPNALSALSDLHAHKLRVDPVNFKLLSHCLLVTLAAHLPAEFTPAVHASLDKFLASVSTVLTSKYR'})
 CREATE (HemoSB:InteractionType {name:'Hemoglobin subunit beta', interaction_type:'target', ordinal:'2', organism_common_name:'Humans', seq_one_letter_code:'MVHLTPEEKSAVTALWGKVNVDEVGGEALGRLLVVYPWTQRFFESFGDLSTPDAVMGNPKVKAHGKKVLGAFSDGLAHLDNLKGTFATLSELHCDKLHVDPENFRLLGNVLVCVLAHHFGKEFTPPVQAAYQKVVAGVANALAHKYH'})
 CREATE (UniProt:Database {name:'UniProt'})
 
-CREATE 
+CREATE
 (DB07428)-[:BELONG_TO]->(Experimental),
 (DB07428)-[:TARGET_TO]->(HemoSA),
 (DB07428)-[:TARGET_TO]->(HemoSB),
@@ -44,7 +44,7 @@ CREATE (cf:ClusterFlexibility {link:'http://pdbflex.org/cluster.html#!/1babA/252
 
 CREATE (lr:LatestRevision {major_revision:'1', minor_revision:'3'})
 
-CREATE 
+CREATE
 (peci)-[:Belong_To]->(Polymer),
 (peci)-[:TARGET_TO]->(genus),
 (peci)-[:TARGET_TO]->(ho),

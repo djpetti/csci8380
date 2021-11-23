@@ -1,0 +1,35 @@
+{
+  "extends": "@tsconfig/recommended/tsconfig.json",
+  "compilerOptions": {
+    "target": "es2017",
+    "module": "es2015",
+    "lib": [
+      "es2017",
+      "dom",
+      "dom.iterable"
+    ],
+    "rootDir": "./src",
+    "outDir": "./build",
+    "experimentalDecorators": true,
+    "moduleResolution": "Node",
+    "strictNullChecks": true,
+    "sourceMap": true,
+    "plugins": [
+      {
+        "name": "ts-lit-plugin",
+        "strict": true,
+        "rules": {
+          "no-unknown-attribute": "off"
+        },
+        "globalTags": ["paper-table"]
+      }
+    ]
+  },
+  "include": [
+    "src/**/*.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "**/*.spec.ts"
+  ]
+}
