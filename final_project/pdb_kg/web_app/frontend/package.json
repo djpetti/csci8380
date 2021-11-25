@@ -59,12 +59,16 @@
     "typescript": "^4.1.5"
   },
   "dependencies": {
-    "@material/mwc-button": "^0.22.1",
-    "@material/mwc-linear-progress": "^0.23.0",
-    "@material/mwc-textfield": "^0.22.1",
-    "@material/mwc-top-app-bar-fixed": "^0.22.1",
+    "@material/mwc-button": "^0.25.3",
+    "@material/mwc-linear-progress": "^0.25.3",
+    "@material/mwc-list": "^0.25.3",
+    "@material/mwc-textfield": "^0.25.3",
+    "@material/mwc-top-app-bar-fixed": "^0.25.3",
+    "graphology": "^0.23.1",
+    "graphology-layout": "^0.4.1",
+    "lit": "^2.0.2",
     "materialize-css": "^1.0.0-rc.2",
-    "typescript-axios": "file:gen/api",
-    "vis-network": "^9.1.0"
+    "sigma": "^2.0.0",
+    "typescript-axios": "file:gen/api"
   }
 }
