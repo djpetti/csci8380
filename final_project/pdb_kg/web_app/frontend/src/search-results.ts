@@ -11,7 +11,7 @@ export class SearchResults extends LitElement {
     #selection {
       margin-right: 20px;
       /* Make sure this always takes priority for mouse events. */
-      z-index: 1
+      z-index: 1;
     }
 
     .fixed-column {
