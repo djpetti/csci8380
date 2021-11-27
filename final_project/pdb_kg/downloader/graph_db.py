@@ -10,8 +10,8 @@ from loguru import logger
 from neo4j import Transaction, Result
 from neo4j.graph import Node
 
-from .data_model import EntryNode, Label, NodeBase, AnnotationNode, ProteinNode
-from .neo4j_driver import get_driver
+from ..data_model import EntryNode, Label, NodeBase
+from ..neo4j_driver import get_driver
 
 
 @singledispatch
@@ -106,7 +106,7 @@ def _update_entry_transaction(
 
 
 def fetch_read(fn, *args) -> Result:
-    """ 
+    """
     Shortcut for a read request for the current database.
 
     Args:
@@ -211,7 +211,7 @@ async def get_annotation(annotation_id: UUID) -> AnnotationNode:
     logger.debug(node_info)
     # Convert to an EntryNode structure.
     return AnnotationNode(**node_info)
-        
+
 
 async def get_protein(protein_id: UUID) -> ProteinNode:
     node_info = await arun(simple_get_transaction, Label.PROTEIN, protein_id)

@@ -8,8 +8,8 @@ from urllib.parse import urljoin
 
 from loguru import logger
 
-from aiohttp_session import get_session
-from data_model import EntryNode, ProteinNode, Publication
+from .aiohttp_session import get_session
+from ..data_model import EntryNode, ProteinNode, Publication
 
 _API_ENDPOINT = "https://data.rcsb.org/rest/v1/"
 """
