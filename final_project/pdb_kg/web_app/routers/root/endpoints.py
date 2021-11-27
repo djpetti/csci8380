@@ -39,21 +39,23 @@ async def query(query_text: str) -> List[UUID]:
     return {"result": query_text}
 
 
-@router.get("/get_protein/{protein_id}")
+@router.get("/get_protein/{protein_id}", response_model=ProteinResponse)
 async def get_protein(protein_id: UUID) -> ProteinResponse:
     driver = get_driver()
     # TODO: Finish this
     return {"result": protein_id}
 
 
-@router.get("/get_annotation/{annotation_id}")
+@router.get(
+    "/get_annotation/{annotation_id}", response_model=AnnotationResponse
+)
 async def get_annotation(annotation_id: UUID) -> AnnotationResponse:
     driver = get_driver()
     # TODO: Finish this
     return {"result": annotation_id}
 
 
-@router.get("/get_entry/{entry_id}")
+@router.get("/get_entry/{entry_id}", response_model=EntryResponse)
 async def get_entry(entry_id: UUID) -> EntryResponse:
     driver = get_driver()
     # TODO: Finish this
