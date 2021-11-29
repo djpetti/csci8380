@@ -3,6 +3,7 @@ import { SearchWidget } from "./search-widget";
 import { SearchResults } from "./search-results";
 import { GraphVisualization } from "./graph-visualization";
 import { ProteinSelector } from "./protein-selector";
+import { ProteinDetails } from "./protein-details";
 
 type LitElementType = typeof LitElement;
 
@@ -17,6 +18,7 @@ const componentClasses: ComponentType[] = [
   SearchResults,
   GraphVisualization,
   ProteinSelector,
+  ProteinDetails,
 ];
 
 /**

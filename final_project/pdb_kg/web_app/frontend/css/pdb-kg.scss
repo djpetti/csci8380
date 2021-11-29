@@ -2,6 +2,7 @@
 @use "materialize-css/dist/css/materialize.min.css";
 @use "colors";
 @use "multi_column";
+@use "tooltips";
 
 #main_app_bar {
   --mdc-theme-primary: var(--theme-secondary-2);

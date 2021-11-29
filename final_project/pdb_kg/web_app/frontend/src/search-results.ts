@@ -1,6 +1,7 @@
 import { css, html, LitElement } from "lit";
 import "./graph-visualization";
 import "./protein-selector";
+import "./protein-details";
 
 /**
  * Handles the display of search results.
@@ -53,18 +54,7 @@ export class SearchResults extends LitElement {
 
         <!-- Protein details -->
         <div class="column_width1 fixed-column" id="details">
-          <div class="card">
-            <span class="card-title">Protein 1</span>
-            <div class="card-content">
-              <p>Detailed info on this protein...</p>
-            </div>
-          </div>
-          <div class="card">
-            <span class="card-title">Protein 2</span>
-            <div class="card-content">
-              <p>Detailed info on this protein...</p>
-            </div>
-          </div>
+          <protein-details></protein-details>
         </div>
       </div>
     `;
