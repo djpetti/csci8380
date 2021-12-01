@@ -4,6 +4,7 @@ import "@material/mwc-textfield";
 import "@material/mwc-button";
 import "@material/mwc-linear-progress";
 import "@material/mwc-list";
+import "@material/mwc-icon-button";
 import { registerComponents } from "./elements";
 import "../css/pdb-kg.scss";
 import "materialize-css/dist/js/materialize";

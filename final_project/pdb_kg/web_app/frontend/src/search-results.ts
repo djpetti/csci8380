@@ -2,10 +2,11 @@ import { css, html, LitElement, PropertyValues } from "lit";
 import "./graph-visualization";
 import "./protein-selector";
 import "./protein-details";
-import { query } from "lit/decorators.js";
+import { query, queryAll } from "lit/decorators.js";
 import { GraphVisualization } from "./graph-visualization";
 import { buildGraph } from "./graph_utils";
 import { ANNOTATIONS, ENTRIES, PROTEINS } from "./example_data";
+import { ProteinSelector } from "./protein-selector";
 
 /**
  * Handles the display of search results.
@@ -36,6 +37,13 @@ export class SearchResults extends LitElement {
   private _graphVis!: GraphVisualization;
 
   /**
+   * Gets all the protein selector cards.
+   * @private
+   */
+  @queryAll("protein-selector")
+  private _proteinSelectors!: ProteinSelector[];
+
+  /**
    * @inheritDoc
    */
   protected render() {
@@ -46,11 +54,7 @@ export class SearchResults extends LitElement {
       <div class="mc_row center">
         <!-- Protein selection -->
         <div class="column_width1 fixed-column" id="selection">
-          <div class="card">
-            <div class="card-content">
-              <protein-selector></protein-selector>
-            </div>
-          </div>
+          <protein-selector></protein-selector>
         </div>
 
         <!-- Graph visualization -->
@@ -77,5 +81,17 @@ export class SearchResults extends LitElement {
   protected firstUpdated(_: PropertyValues) {
     // Initialize the graph.
     this._graphVis.graph = buildGraph(PROTEINS, ANNOTATIONS, ENTRIES);
+
+    // Add a listeners for the close button on the result cards.
+    for (const resultCard of this._proteinSelectors) {
+      resultCard.addEventListener(
+        ProteinSelector.CLOSED_EVENT_NAME,
+        (event: Event) => {
+          (event.target as ProteinSelector).parentElement?.removeChild(
+            event.target as HTMLElement
+          );
+        }
+      );
+    }
   }
 }
