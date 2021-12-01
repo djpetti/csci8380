@@ -123,7 +123,7 @@ class ProteinNode(Entity):
 
     Attributes:
         entry_id: The ID of the parent PDB entry for this protein.
-        name: The name of the parent PDB entry for this protein.
+        entry_name: The name of the parent PDB entry for this protein.
 
         sequence: The sequence of the protein, in FASTA notation.
 
@@ -136,7 +136,7 @@ class ProteinNode(Entity):
     label: Label = Label.PROTEIN
 
     entry_id: str
-    name: str
+    entry_name: str
 
     sequence: str
 
@@ -195,7 +195,7 @@ class DrugNode(Entity):
     Attributes:
         drug_groups: Represents the drug groups that this entity belongs to.
         drugbank_id: Identity of the node in DrugBank.
-        name: The compound official name.
+        drugbank_name: The compound official name.
         synonyms: Synonymous names for the drug.
 
     """
@@ -204,7 +204,7 @@ class DrugNode(Entity):
 
     drug_groups: Set[str]
     drugbank_id: str
-    name: str
+    drugbank_name: str
     synonyms: Set[str]
 
 
