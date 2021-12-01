@@ -126,7 +126,6 @@ class ProteinNode(Entity):
         name: The name of the parent PDB entry for this protein.
 
         sequence: The sequence of the protein, in FASTA notation.
-        sequence: The length of the protein sequence.
 
         annotations: Gene ontology annotations that are associated with this
             protein. They should be labeled by the GO ID.
@@ -140,7 +139,6 @@ class ProteinNode(Entity):
     name: str
 
     sequence: str
-    sequence_length: int
 
     annotations: Set[str]
     cofactors: Set[str]
