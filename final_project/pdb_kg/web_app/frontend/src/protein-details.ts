@@ -6,6 +6,7 @@ import {
   ProteinResponse,
   Publication,
 } from "typescript-axios";
+import { ANNOTATIONS, ENTRIES, PROTEINS } from "./example_data";
 
 /**
  * Displays detailed information about a protein.
@@ -27,52 +28,20 @@ export class ProteinDetails extends LitElement {
    * The info for the protein we want to render.
    */
   @property({ attribute: false })
-  protein: ProteinResponse = {
-    id: "4HHB",
-    name: "Hemoglobin subunit alpha",
-    entryId: "entry",
-    sequence: "FASTA",
-    annotations: new Set(["asfs123asa21"]),
-    cofactors: new Set(),
-    entryUuid: "",
-    cofactorUuids: new Set(),
-    annotationUuids: new Set(),
-  };
+  protein: ProteinResponse = PROTEINS[0];
 
   /**
    * The info for the entry corresponding to this protein.
    */
   @property({ attribute: false })
-  entry: EntryResponse = {
-    entryId: "2423",
-    proteinEntityIds: new Set(),
-    publications: [
-      {
-        title: "Thoughts about Things: A Survey",
-        authors: ["Daniel Petti", "Zach Ross"],
-        year: 2020,
-      },
-      {
-        title: "More Thoughts about Things",
-        authors: ["Daniel Petti", "Zach Ross"],
-        year: 2021,
-      },
-    ],
-  };
+  entry: EntryResponse = ENTRIES[0];
 
   /**
    * The annotation info for all the annotations that this protein has.
    * It is okay also if this includes extraneous annotations.
    */
   @property({ attribute: false })
-  annotations: AnnotationResponse[] = [
-    {
-      uuid: "asfs123asa21",
-      id: "GO:1905690",
-      name: "Bio Stuff",
-      description: "Mumble mumble mitochondria mumble",
-    },
-  ];
+  annotations: AnnotationResponse[] = ANNOTATIONS;
 
   /**
    * Generates a simple abbreviated name for a publication, as you might
@@ -176,7 +145,7 @@ export class ProteinDetails extends LitElement {
               <tr>
                 <td class="bold">Annotations</td>
                 <td>
-                  ${[...this.protein.annotations].map((uuid) =>
+                  ${[...this.protein.annotationUuids].map((uuid) =>
                     // Don't render annotations that we don't have details for.
                     uuidToAnnotation.has(uuid)
                       ? ProteinDetails.renderAnnotation(

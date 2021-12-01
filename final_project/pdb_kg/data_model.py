@@ -11,28 +11,28 @@ from pydantic import BaseModel, Field
 
 
 @enum.unique
-class Label(enum.IntEnum):
+class NodeLabel(enum.Enum):
     """
     Represents labels that nodes can have in the database.
     """
 
-    NONE = enum.auto()
+    NONE = "none"
     """
     Specifies that no specific label should be used.
     """
-    PROTEIN = enum.auto()
+    PROTEIN = "protein"
     """
     Indicates that a node represents a protein.
     """
-    DRUG = enum.auto()
+    DRUG = "drug"
     """
     Indicates that a node represents a drug.
     """
-    ENTRY = enum.auto()
+    ENTRY = "entry"
     """
     Indicates that a node represents a PDB entry.
     """
-    ANNOTATION = enum.auto()
+    ANNOTATION = "annotation"
     """
     Indicates that a node represents an ontology annotation.
     """
@@ -65,7 +65,7 @@ class NodeBase(BaseModel):
     """
 
     uuid: UUID = Field(default_factory=uuid4)
-    label: Label
+    label: NodeLabel
 
 
 class Publication(BaseModel):
@@ -95,7 +95,7 @@ class EntryNode(NodeBase):
 
     """
 
-    label: Label = Label.ENTRY
+    label: NodeLabel = NodeLabel.ENTRY
 
     entry_id: str
     protein_entity_ids: Set[str]
@@ -148,7 +148,7 @@ class ProteinNode(Entity):
 
     """
 
-    label: Label = Label.PROTEIN
+    label: NodeLabel = NodeLabel.PROTEIN
 
     entry_id: str
     entry_name: str
@@ -234,7 +234,7 @@ class DrugNode(Entity):
 
     """
 
-    label: Label = Label.DRUG
+    label: NodeLabel = NodeLabel.DRUG
 
     drug_groups: Set[str]
     drugbank_id: str
@@ -266,7 +266,7 @@ class AnnotationNode(Entity):
 
     """
 
-    label: Label = Label.ANNOTATION
+    label: NodeLabel = NodeLabel.ANNOTATION
 
     description: str
 

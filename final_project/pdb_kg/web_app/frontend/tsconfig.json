@@ -21,7 +21,6 @@
         "rules": {
           "no-unknown-attribute": "off"
         },
-        "globalTags": ["paper-table"]
       }
     ]
   },

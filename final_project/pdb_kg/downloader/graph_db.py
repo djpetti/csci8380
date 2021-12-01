@@ -8,9 +8,8 @@ from uuid import UUID
 from loguru import logger
 
 from neo4j import Transaction, Result
-from neo4j.graph import Node
 
-from ..data_model import EntryNode, Label, NodeBase
+from ..data_model import EntryNode, NodeBase, NodeLabel, AnnotationNode, ProteinNode
 from ..neo4j_driver import get_driver
 
 

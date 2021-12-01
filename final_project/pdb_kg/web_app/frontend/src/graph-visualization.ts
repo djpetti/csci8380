@@ -1,7 +1,8 @@
 import { html, LitElement, PropertyValues, css } from "lit";
-import { query } from "lit/decorators.js";
+import { property, query } from "lit/decorators.js";
 import Graph from "graphology";
 import Sigma from "sigma";
+import ForceSupervisor from "graphology-layout-force/worker";
 import random from "graphology-layout/random";
 
 /**
@@ -12,7 +13,7 @@ export class GraphVisualization extends LitElement {
   static styles = css`
     #graph {
       width: 100%;
-      height: 30vh;
+      height: 50vh;
       /* This is a hack to get Sigma to display without an offset.
          I assume Sigma isn't playing nice with LitElement or something. */
       margin-left: -50%;
@@ -20,6 +21,12 @@ export class GraphVisualization extends LitElement {
       overflow: hidden;
     }
   `;
+
+  /**
+   * The graph that we want to display.
+   */
+  @property({ attribute: false })
+  graph!: Graph;
 
   /**
    * The container element that will store the graph.
@@ -33,6 +40,12 @@ export class GraphVisualization extends LitElement {
   private _renderer!: Sigma;
 
   /**
+   * Manages the graph layout automatically.
+   * @private
+   */
+  private _layout!: ForceSupervisor;
+
+  /**
    * @inheritDoc
    */
   protected render() {
@@ -40,19 +53,28 @@ export class GraphVisualization extends LitElement {
   }
 
   /**
+   * Draws the graph, setting up the renderer and all the interaction callbacks.
+   * This should only have to be called after the graph is updated.
+   * @private
+   */
+  private drawGraph() {
+    // Draw the graph.
+    this._renderer = new Sigma(this.graph, this._graphContainer);
+
+    // Initialize the node positions randomly.
+    random.assign(this.graph);
+    // Use the force layout for the graph.
+    this._layout = new ForceSupervisor(this.graph);
+    this._layout.start();
+  }
+
+  /**
    * @inheritDoc
    */
-  protected firstUpdated(_: PropertyValues) {
-    // Draw the graph.
-    const graph = new Graph();
-
-    graph.addNode("John", { x: 0, y: 0, size: 5, label: "John" });
-    graph.addNode("Mary", { x: 0, y: 0, size: 3, label: "Mary" });
-
-    graph.addEdge("John", "Mary");
-
-    random.assign(graph);
-
-    this._renderer = new Sigma(graph, this._graphContainer);
+  protected updated(changedProperties: PropertyValues) {
+    if (changedProperties.has("graph")) {
+      // Draw the new graph.
+      this.drawGraph();
+    }
   }
 }
