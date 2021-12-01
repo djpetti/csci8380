@@ -10,8 +10,8 @@ from typing import Any, AsyncIterator, Awaitable, Coroutine, Iterable
 from loguru import logger
 from pydantic import BaseModel
 
-from .data_model import EntryCommon, EntryNode, ProteinNode
-from .download_tasks import get_entry, get_entry_list, get_protein_entity
+from data_model import EntryNode, ProteinNode
+from download_tasks import get_entry, get_entry_list, get_protein_entity
 
 
 class DownloadManager:
@@ -148,7 +148,7 @@ class DownloadManager:
 
     async def __download_protein_entities(
         self,
-        entry: EntryCommon,
+        entry,
     ) -> AsyncIterator[ProteinNode]:
         """
         Downloads all the protein entity information from a particular entry.

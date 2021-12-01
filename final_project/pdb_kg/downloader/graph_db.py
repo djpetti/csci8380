@@ -5,11 +5,12 @@ import asyncio
 from functools import singledispatch
 from typing import Any, List, Set, Tuple
 from uuid import UUID
+from loguru import logger
 
-from neo4j import Transaction
+from neo4j import Transaction, Result
 from neo4j.graph import Node
 
-from .data_model import EntryNode, Label, NodeBase
+from .data_model import EntryNode, Label, NodeBase, AnnotationNode, ProteinNode
 from .neo4j_driver import get_driver
 
 
@@ -104,23 +105,64 @@ def _update_entry_transaction(
     )
 
 
-def _get_entry_transaction(transaction: Transaction, entry_uuid: UUID) -> Node:
-    """
-    Transaction function that loads a particular entry node.
+def fetch_read(fn, *args) -> Result:
+    """ 
+    Shortcut for a read request for the current database.
 
     Args:
-        transaction: The transaction object.
-        entry_uuid: The entry UUID.
-
-    Returns:
-        The loaded entry.
+        fn: Function that should be called for the read request. First argument
+        of the function should always be of they type Transaction.
+        *args: List of accompanying arguments for the function above.
 
     """
-    result = transaction.run(
-        f"MATCH (entry:{Label.ENTRY.name} {{uuid: $uuid}})" f"RETURN entry",
-        uuid=str(entry_uuid),
-    )
-    return result.single()[0]
+    with get_driver().session() as session:
+        return session.read_transaction(
+            fn, *args
+        )
+
+
+def run_read_query(query: str) -> Result:
+    """
+    Runs a query with a simple read request. This function helps to remove
+    boilerplate.
+
+    Args:
+        query: The query to be ran.
+    """
+
+    def _rt(transaction: Transaction, ts: str):
+        logger.debug(f"Running transaction {query}")
+        return transaction.run(ts)
+    return fetch_read(_rt, query)
+
+
+def simple_get_transaction(label, uuid: UUID) -> Result:
+    """
+    Runs a simple get request using any of the labellings from the Label class
+    and the uuid corresponding to the element to be retrieved.
+
+    Args:
+        label: Element from the Label enumeration
+        uuid: A UUID corresponding to the element to be retrieved.
+
+    """
+
+    transaction = f"MATCH (entry:{label.name} {{uuid: '{uuid}'}}) RETURN entry"
+    return run_read_query(transaction)
+
+
+def arun(fn, *args):
+    """
+    asyncio.to_thread wasn't working for myversion of python, so this is the
+    alternative method which has worked fine in my case. Provides a shortcut
+    with less boilerplate.
+
+    Args:
+        fn: Function to be waited on for completion
+        *args: List of the arguments to this function
+
+    """
+    return asyncio.get_running_loop().run_in_executor(None, fn, *args)
 
 
 async def update_entry(entry: EntryNode) -> None:
@@ -139,7 +181,7 @@ async def update_entry(entry: EntryNode) -> None:
         with get_driver().session() as session:
             session.write_transaction(_update_entry_transaction, _entry)
 
-    await asyncio.to_thread(_update_entry_sync, entry)
+    await arun(_update_entry_sync, entry)
 
 
 async def get_entry(entry_uuid: UUID) -> EntryNode:
@@ -157,12 +199,23 @@ async def get_entry(entry_uuid: UUID) -> EntryNode:
 
     """
 
-    def _get_entry_sync(_entry_uuid: UUID) -> Node:
-        with get_driver().session() as session:
-            return session.read_transaction(
-                _get_entry_transaction, _entry_uuid
-            )
-
-    node_info = await asyncio.to_thread(_get_entry_sync, entry_uuid)
+    node_info = await arun(simple_get_transaction, Label.ENTRY, entry_uuid)
+    node_info = node_info.single()[0]
     # Convert to an EntryNode structure.
     return EntryNode(**node_info)
+
+
+async def get_annotation(annotation_id: UUID) -> AnnotationNode:
+    node_info = await arun(simple_get_transaction, Label.ANNOTATION, annotation_id)
+    node_info = node_info.single()[0]
+    logger.debug(node_info)
+    # Convert to an EntryNode structure.
+    return AnnotationNode(**node_info)
+        
+
+async def get_protein(protein_id: UUID) -> ProteinNode:
+    node_info = await arun(simple_get_transaction, Label.PROTEIN, protein_id)
+    node_info = node_info.single()[0]
+    logger.debug(node_info)
+    return ProteinNode(**node_info)
+
