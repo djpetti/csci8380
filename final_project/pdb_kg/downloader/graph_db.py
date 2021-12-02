@@ -327,8 +327,6 @@ async def form_kg() -> None:
 
     """
 
-    prot_list = []
-
     entry_list = await get_entry_list()
 
     # get each entry in entry list
@@ -338,6 +336,7 @@ async def form_kg() -> None:
 
     # get each protein which belongs to a specific entry
         for prot_entity in entry.protein_entity_ids:
+            prot_list = []
             prot_node = await get_protein_entity(entry_id=entry_id, entity_id=prot_entity)
 
             await update_entry(prot_node)
@@ -349,7 +348,6 @@ async def form_kg() -> None:
                     create_relationship(prev_prot, prot_node, "SIMILAR_SEQUENCE")
                     create_relationship(prot_node, prev_prot, "SIMILAR_SEQUENCE")
             prot_list.append(prot_node)
-
 
 
 def save_kg_to_json(filename: str) -> None:
