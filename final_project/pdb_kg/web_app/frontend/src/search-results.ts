@@ -8,7 +8,7 @@ import { buildGraph } from "./graph-utils";
 import { ANNOTATIONS, ENTRIES, PROTEINS } from "./example_data";
 import { ProteinSelector, SelectionChangedEvent } from "./protein-selector";
 import { ProteinResponse } from "typescript-axios";
-import {ProteinDetails} from "./protein-details";
+import { ProteinDetails } from "./protein-details";
 
 /**
  * Represents the result of a search.
@@ -73,9 +73,12 @@ export class SearchResults extends LitElement {
   private _searchResultToElement = new Map<SearchData, ProteinSelector>();
 
   /**
-   * Keeps track of which proteins are already selected.
+   * Maps selected proteins to corresponding details cards.
    */
-  private _selectedProteins = new Set<ProteinResponse>();
+  private _selectedProteinsToElement = new Map<
+    ProteinResponse,
+    ProteinDetails
+  >();
 
   /**
    * @inheritDoc
@@ -100,8 +103,7 @@ export class SearchResults extends LitElement {
         </div>
 
         <!-- Protein details -->
-        <div class="column_width1 fixed-column" id="details">
-        </div>
+        <div class="column_width1 fixed-column" id="details"></div>
       </div>
     `;
   }
@@ -114,7 +116,7 @@ export class SearchResults extends LitElement {
   private updateSelectedProteins(selectedProteins: ProteinResponse[]) {
     // Add protein details.
     for (const protein of selectedProteins) {
-      if (this._selectedProteins.has(protein)) {
+      if (this._selectedProteinsToElement.has(protein)) {
         // Protein was selected before. We should not need to change anything.
         continue;
       }
@@ -125,15 +127,20 @@ export class SearchResults extends LitElement {
       // Add it to the DOM.
       this._detailsContainer.appendChild(detailsCard);
 
-      this._selectedProteins.add(protein);
+      this._selectedProteinsToElement.set(protein, detailsCard);
     }
 
     // Remove protein details.
-    for (const protein of this._selectedProteins) {
+    for (const [protein, card] of this._selectedProteinsToElement) {
       if (selectedProteins.includes(protein)) {
         // Protein was not selected before. We should not need to change anything.
         continue;
       }
+
+      // Otherwise, remove the details card.
+      this._detailsContainer.removeChild(card);
+
+      this._selectedProteinsToElement.delete(protein);
     }
   }
 
@@ -182,6 +189,8 @@ export class SearchResults extends LitElement {
         result
       ) as ProteinSelector;
       this._selectionContainer.removeChild(selector);
+
+      this._searchResultToElement.delete(result);
     }
   }
 
