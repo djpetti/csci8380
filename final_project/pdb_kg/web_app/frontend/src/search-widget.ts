@@ -1,9 +1,11 @@
-import { css, html, LitElement } from "lit";
-import { property } from "lit/decorators.js";
+import { css, html, LitElement, PropertyValues } from "lit";
+import { property, query } from "lit/decorators.js";
 import "@material/mwc-textfield";
 import "@material/mwc-button";
 import "@material/mwc-linear-progress";
 import "./search-results";
+import { SearchResults } from "./search-results";
+import { PROTEINS } from "./example_data";
 
 /**
  * Main element that handles searching and the display of results.
@@ -59,7 +61,14 @@ export class SearchWidget extends LitElement {
 
   /** Whether a search is currently in-progress. */
   @property({ attribute: false })
-  private isSearching: boolean = false;
+  private _isSearching: boolean = false;
+
+  /**
+   * The element displaying search results.
+   * @private
+   */
+  @query("#results")
+  private _results!: SearchResults;
 
   /**
    * Checks whether the currently-entered names are valid.
@@ -75,9 +84,9 @@ export class SearchWidget extends LitElement {
    */
   protected render() {
     // Class controlling the display of the search button.
-    const searchDisplayClass = this.isSearching ? "hidden" : "";
+    const searchDisplayClass = this._isSearching ? "hidden" : "";
     // Class controlling the display of the loading indicator.
-    const loadingDisplayClass = this.isSearching ? "" : "hidden";
+    const loadingDisplayClass = this._isSearching ? "" : "hidden";
 
     return html`
       <link rel="stylesheet" href="static/pdb-kg.css" />
@@ -124,5 +133,12 @@ export class SearchWidget extends LitElement {
         </div>
       </div>
     `;
+  }
+
+  /**
+   * @inheritDoc
+   */
+  protected firstUpdated(_: PropertyValues) {
+    this._results.searchResults = [{ proteins: PROTEINS }];
   }
 }

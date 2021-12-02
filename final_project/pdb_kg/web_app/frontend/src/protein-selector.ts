@@ -5,6 +5,16 @@ import "@material/mwc-list/mwc-list-item";
 import { ProteinResponse } from "typescript-axios";
 import "@material/mwc-icon-button";
 import { PROTEINS } from "./example_data";
+import { SelectedEvent } from "@material/mwc-list";
+
+/**
+ * Interface for a custom event indicating that the selection has changed.
+ */
+export interface SelectionChangedEvent extends Event {
+  // The detail attribute is now the structures for the proteins
+  // that are currently selected.
+  detail: ProteinResponse[];
+}
 
 /**
  * Provides a simple selection mechanism for search results.
@@ -23,6 +33,11 @@ export class ProteinSelector extends LitElement {
    * button.
    */
   static CLOSED_EVENT_NAME: string = "selector-closed";
+
+  /**
+   * Name for the custom event signaling that the user has changed their selection.
+   */
+  static SELECTION_CHANGED_EVENT_NAME: string = "selector-selection-changed";
 
   /**
    * Info for the proteins that will be displayed by this element.
@@ -46,6 +61,27 @@ export class ProteinSelector extends LitElement {
   }
 
   /**
+   * Handler for the event that is triggered when the user changes their selection.
+   * @param {SelectedEvent} event The event that was triggered.
+   * @private
+   */
+  private handleSelection(event: SelectedEvent) {
+    // Get the actual proteins that were selected.
+    const selectedProteins = [];
+    for (const index of event.detail.index as Set<number>) {
+      selectedProteins.push(this.proteins[index]);
+    }
+
+    // Dispatch a new event with this information.
+    this.dispatchEvent(
+      new CustomEvent<ProteinResponse[]>(
+        ProteinSelector.SELECTION_CHANGED_EVENT_NAME,
+        { bubbles: true, composed: true, detail: selectedProteins }
+      )
+    );
+  }
+
+  /**
    * @inheritDoc
    */
   protected render() {
@@ -66,7 +102,7 @@ export class ProteinSelector extends LitElement {
             )}"
         ></mwc-icon-button>
         <div class="card-content">
-          <mwc-list activatable>
+          <mwc-list activatable multi @selected="${this.handleSelection}">
             ${this.proteins.map((protein) =>
               ProteinSelector.renderProtein(protein)
             )}

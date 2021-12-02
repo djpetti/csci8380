@@ -2,11 +2,21 @@ import { css, html, LitElement, PropertyValues } from "lit";
 import "./graph-visualization";
 import "./protein-selector";
 import "./protein-details";
-import { query, queryAll } from "lit/decorators.js";
+import { property, query } from "lit/decorators.js";
 import { GraphVisualization } from "./graph-visualization";
-import { buildGraph } from "./graph_utils";
+import { buildGraph } from "./graph-utils";
 import { ANNOTATIONS, ENTRIES, PROTEINS } from "./example_data";
-import { ProteinSelector } from "./protein-selector";
+import { ProteinSelector, SelectionChangedEvent } from "./protein-selector";
+import { ProteinResponse } from "typescript-axios";
+import {ProteinDetails} from "./protein-details";
+
+/**
+ * Represents the result of a search.
+ */
+export interface SearchData {
+  // The proteins that the search found.
+  proteins: ProteinResponse[];
+}
 
 /**
  * Handles the display of search results.
@@ -30,6 +40,12 @@ export class SearchResults extends LitElement {
   `;
 
   /**
+   * Contains the search results that we want to display.
+   */
+  @property({ attribute: false })
+  searchResults: SearchData[] = [];
+
+  /**
    * Element displaying the graph visualization.
    * @private
    */
@@ -37,11 +53,29 @@ export class SearchResults extends LitElement {
   private _graphVis!: GraphVisualization;
 
   /**
-   * Gets all the protein selector cards.
+   * The container displaying protein selections.
    * @private
    */
-  @queryAll("protein-selector")
-  private _proteinSelectors!: ProteinSelector[];
+  @query("#selection")
+  private _selectionContainer!: HTMLElement;
+
+  /**
+   * The container displaying protein details.
+   * @private
+   */
+  @query("#details")
+  private _detailsContainer!: HTMLElement;
+
+  /**
+   * Maps search results to the corresponding element displaying them.
+   * @private
+   */
+  private _searchResultToElement = new Map<SearchData, ProteinSelector>();
+
+  /**
+   * Keeps track of which proteins are already selected.
+   */
+  private _selectedProteins = new Set<ProteinResponse>();
 
   /**
    * @inheritDoc
@@ -53,9 +87,7 @@ export class SearchResults extends LitElement {
       <!-- 3-column layout -->
       <div class="mc_row center">
         <!-- Protein selection -->
-        <div class="column_width1 fixed-column" id="selection">
-          <protein-selector></protein-selector>
-        </div>
+        <div class="column_width1 fixed-column" id="selection"></div>
 
         <!-- Graph visualization -->
         <div class="column_width3 fixed-column" id="visualization">
@@ -69,10 +101,97 @@ export class SearchResults extends LitElement {
 
         <!-- Protein details -->
         <div class="column_width1 fixed-column" id="details">
-          <protein-details></protein-details>
         </div>
       </div>
     `;
+  }
+
+  /**
+   * Updates the selected proteins in the UI based on the user's selections.
+   * @param {ProteinResponse[]} selectedProteins The proteins that the user selected.
+   * @private
+   */
+  private updateSelectedProteins(selectedProteins: ProteinResponse[]) {
+    // Add protein details.
+    for (const protein of selectedProteins) {
+      if (this._selectedProteins.has(protein)) {
+        // Protein was selected before. We should not need to change anything.
+        continue;
+      }
+
+      // Otherwise, add the details card.
+      const detailsCard = new ProteinDetails();
+      detailsCard.protein = protein;
+      // Add it to the DOM.
+      this._detailsContainer.appendChild(detailsCard);
+
+      this._selectedProteins.add(protein);
+    }
+
+    // Remove protein details.
+    for (const protein of this._selectedProteins) {
+      if (selectedProteins.includes(protein)) {
+        // Protein was not selected before. We should not need to change anything.
+        continue;
+      }
+    }
+  }
+
+  /**
+   * @private
+   */
+  private updateSearchResults() {
+    // Add any missing results.
+    for (const result of this.searchResults) {
+      if (this._searchResultToElement.has(result)) {
+        // We are already displaying these results. No need to change anything.
+        continue;
+      }
+
+      // Create a new element to display the search results.
+      const selector = new ProteinSelector();
+      selector.proteins = result.proteins;
+
+      // Add it to the DOM.
+      this._selectionContainer.appendChild(selector);
+      this._searchResultToElement.set(result, selector);
+
+      // Add a listener for the close button.
+      selector.addEventListener(
+        ProteinSelector.CLOSED_EVENT_NAME,
+        (_: Event) =>
+          (this.searchResults = this.searchResults.filter((e) => e != result))
+      );
+      // Add a listener for selection changes.
+      selector.addEventListener(
+        ProteinSelector.SELECTION_CHANGED_EVENT_NAME,
+        (event: Event) =>
+          this.updateSelectedProteins((event as SelectionChangedEvent).detail)
+      );
+    }
+
+    // Remove any closed results.
+    for (const result of this._searchResultToElement.keys()) {
+      if (this.searchResults.includes(result)) {
+        // We haven't closed this yet. No need to change anything.
+        continue;
+      }
+
+      // Remove the element.
+      const selector = this._searchResultToElement.get(
+        result
+      ) as ProteinSelector;
+      this._selectionContainer.removeChild(selector);
+    }
+  }
+
+  /**
+   * @inheritDoc
+   */
+  protected updated(changedProperties: PropertyValues) {
+    if (changedProperties.has("searchResults")) {
+      this.updateSearchResults();
+    }
   }
 
   /**
@@ -81,17 +200,5 @@ export class SearchResults extends LitElement {
   protected firstUpdated(_: PropertyValues) {
     // Initialize the graph.
     this._graphVis.graph = buildGraph(PROTEINS, ANNOTATIONS, ENTRIES);
-
-    // Add a listeners for the close button on the result cards.
-    for (const resultCard of this._proteinSelectors) {
-      resultCard.addEventListener(
-        ProteinSelector.CLOSED_EVENT_NAME,
-        (event: Event) => {
-          (event.target as ProteinSelector).parentElement?.removeChild(
-            event.target as HTMLElement
-          );
-        }
-      );
-    }
   }
 }

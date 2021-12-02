@@ -36,19 +36,19 @@ class NodeLabel(enum.Enum):
     """
     Indicates that a node represents an ontology annotation.
     """
-    DRUGBANK_TARGET = enum.auto()
+    DRUGBANK_TARGET = "drugbank_target"
     """
     Indicates that a node represents a drug's target.
     """
-    DATABASE = enum.auto()
+    DATABASE = "database"
     """
     Indicates that a node represents a protein database.
     """
-    HOST_ORGANISM = enum.auto()
+    HOST_ORGANISM = "host_organism"
     """
     Indicates that a node represents a host organism of a protein.
     """
-    SOURCE_ORGANISM = enum.auto()
+    SOURCE_ORGANISM = "source_organism"
     """
     Indicates that a node represents a source organism of a protein.
     """
@@ -65,7 +65,7 @@ class NodeBase(BaseModel):
     """
 
     uuid: UUID = Field(default_factory=uuid4)
-    label: NodeLabel
+    label: NodeLabel = NodeLabel.NONE
 
 
 class Publication(BaseModel):
@@ -138,7 +138,6 @@ class ProteinNode(Entity):
 
     Attributes:
         entry_id: The ID of the parent PDB entry for this protein.
-        entry_name: The name of the parent PDB entry for this protein.
 
         sequence: The sequence of the protein, in FASTA notation.
 
@@ -151,7 +150,6 @@ class ProteinNode(Entity):
     label: NodeLabel = NodeLabel.PROTEIN
 
     entry_id: str
-    entry_name: str
 
     sequence: str
 
@@ -248,7 +246,7 @@ class DrugbankTarget(NodeBase):
 
     Attributes:
         interaction_type: Represents interaction types.
-        name: Reprsnts the target's name.
+        name: Represents the target's name.
         ordinal: Distinguish different targets on the same drug.
         organism_common_name: Represents the target affect whom.
         seq_one_letter_code: Represents an amino acid sequence of the target.

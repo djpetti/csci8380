@@ -65,7 +65,7 @@ async def get_entry(entry_id: UUID) -> EntryResponse:
 
 
 @router.get("/get_neighbors/{neighbors_id}")
-async def get_neighbors(neighbors_id: UUID) -> List[UUID]:
+async def get_neighbors(neighbors_id: UUID) -> List[NodeBase]:
     driver = get_driver()  # noqa: F841
     # TODO: Finish this
     return {"result": neighbors_id}
@@ -78,7 +78,7 @@ async def get_annotated(annotated_id: UUID) -> List[UUID]:
     return {"result": annotated_id}
 
 
-@router.get("/get_path")
+@router.get("/get_path", response_model=List[NodeBase])
 async def get_path(
     start: UUID, end: UUID, max_length: int = 50
 ) -> List[NodeBase]:
