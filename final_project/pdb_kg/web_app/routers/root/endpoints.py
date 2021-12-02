@@ -9,7 +9,12 @@ from uuid import UUID
 from fastapi import APIRouter
 from fastapi.responses import HTMLResponse
 
-from ....data_model import AnnotationResponse, EntryResponse, ProteinResponse
+from ....data_model import (
+    AnnotationResponse,
+    EntryResponse,
+    NodeBase,
+    ProteinResponse,
+)
 from ....neo4j_driver import get_driver
 from ...template_engine import template_environment
 
@@ -74,7 +79,9 @@ async def get_annotated(annotated_id: UUID) -> List[UUID]:
 
 
 @router.get("/get_path")
-async def get_path(start: UUID, end: UUID, max_length: int = 50) -> List[UUID]:
+async def get_path(
+    start: UUID, end: UUID, max_length: int = 50
+) -> List[NodeBase]:
     """
     Gets the shortest path between a start node and an end node.
 
@@ -84,7 +91,7 @@ async def get_path(start: UUID, end: UUID, max_length: int = 50) -> List[UUID]:
         max_length: The maximum path length.
 
     Returns:
-        The list of UUIDs of the nodes that make up the path, in order. If
+        The list of the nodes that make up the path, in order. If
         the path does not exist or is too long, it returns an empty list.
 
     """

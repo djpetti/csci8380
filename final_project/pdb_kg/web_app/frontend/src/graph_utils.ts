@@ -94,3 +94,5 @@ export function addNeighbors(graph: Graph, rootNode: Node, neighbors: Node[]) {
     graph.addEdge(rootNode.uuid, node.uuid);
   }
 }
+
+export function createNeighborhoodGraph()
