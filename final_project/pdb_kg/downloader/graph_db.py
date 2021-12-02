@@ -286,3 +286,94 @@ async def get_path(start: UUID, end: UUID, max_length: int) -> List[NodeBase]:
     node_info = list(node_info.graph().nodes.items())
     node_info = [NodeBase(**node) for node in node_info]
     return node_info
+
+
+async def do_query(cql: str) -> None:
+    """
+    Run a particular cypher through inputting custom query sentence.
+
+    Args:
+        cql: The created query sentence under NEO4J format.
+
+    """
+
+    with get_driver().session() as session:
+        session.run(cql)
+
+
+def create_relationship(e1: object, e2: object, relation: str):
+    """
+    Create a relationship between two existed nodes(entities) by using Neo4J query sentence.
+
+    Args:
+        e1: Entity 1.
+        e2: Entity 2.
+        relation: Relation name.
+
+    """
+
+    cql = "MATCH (a:" + e1.label.name + "), (b:" + e2.label.name + ") " \
+          "WHERE a.uuid = '" + str(e1.uuid) + "' AND b.uuid = '" + str(e2.uuid) + "' " \
+          "CREATE (a)-[:" + relation + "]->(b)"
+
+    asyncio.run(do_query(cql))
+
+
+async def form_kg() -> None:
+    """
+    Create Neo4J database by adding nodes and relationships.
+
+    Returns: None
+
+    """
+
+    prot_list = []
+
+    entry_list = await get_entry_list()
+
+    # get each entry in entry list
+    for entry_id in entry_list:
+        entry = await get_entry(entry_id=entry_id)
+        await update_entry(entry)
+
+    # get each protein which belongs to a specific entry
+        for prot_entity in entry.protein_entity_ids:
+            prot_node = await get_protein_entity(entry_id=entry_id, entity_id=prot_entity)
+
+            await update_entry(prot_node)
+            create_relationship(entry, prot_node, "HAS_PROTEIN")
+
+    # Create relationship between nodes have similar sequence
+            if len(prot_list) > 1:
+                for prev_prot in prot_list:
+                    create_relationship(prev_prot, prot_node, "SIMILAR_SEQUENCE")
+                    create_relationship(prot_node, prev_prot, "SIMILAR_SEQUENCE")
+            prot_list.append(prot_node)
+
+
+
+def save_kg_to_json(filename: str) -> None:
+    """
+    Export data in Neo4J into a JSON format file.
+
+    Args:
+        filename: Give a string type file name.
+
+    """
+
+    cql = "CALL apoc.export.json.all('" + filename + ".json', {useTypes:true})"
+
+    asyncio.run(do_query(cql))
+
+
+def delete_all() -> None:
+    """
+
+    Remove all nodes and relationships in database.
+
+    """
+
+    cql = "MATCH (n) DETACH DELETE n"
+
+    asyncio.run(do_query(cql))
+    
