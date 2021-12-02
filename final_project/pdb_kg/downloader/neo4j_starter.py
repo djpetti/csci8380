@@ -1,6 +1,6 @@
 import asyncio
-from pdb_kg.downloader.data_model import *
-from pdb_kg.downloader import graph_db
+from data_model import *
+from downloader import graph_db
 
 
 def create_relationship(e1: object, e2: object, relation: str):

@@ -8,15 +8,16 @@ from uuid import UUID
 
 from loguru import logger
 from neo4j import Result, Transaction
+from neo4j.graph import Node
 
-from ..data_model import (
+from data_model import (
     AnnotationNode,
     EntryNode,
     NodeBase,
     NodeLabel,
     ProteinNode,
 )
-from ..neo4j_driver import get_driver
+from neo4j_driver import get_driver
 
 
 @singledispatch
@@ -226,3 +227,62 @@ async def get_protein(protein_id: UUID) -> ProteinNode:
     node_info = node_info.single()[0]
     logger.debug(node_info)
     return ProteinNode(**node_info)
+
+
+async def get_neighbors(object_id: UUID) -> List[NodeBase]:
+    query = f"MATCH ({{uuid: \"{object_id}\"}})-[*1]-(c) RETURN c"
+    node_info = await run_in_thread(
+            run_read_query, query
+    )
+
+    # Return the list of items obtained by node_info. Needs to be wrapped in a
+    # list since the default return value is an ItemView. Each of the items
+    # needs to also be converted from a Node to a NodeBase (or possibly further
+    # converted if necessary). Note that node_info.values() may need to be used
+    # instead of node_info.items(), but that has yet to be tested.
+    node_info = list(node_info.graph().nodes.items())
+    node_info = [NodeBase(**node) for node in node_info]
+
+    return node_info
+
+
+async def get_annotated(annotation_id: UUID) -> List[ProteinNode]:
+    query = (
+            f"MATCH ({{uuid: \"{annotation_id}\"}})"
+            f"-[*1]-(c:{NodeLabel.PROTEIN.name}) RETURN c"
+    )
+    node_info = await run_in_thread(
+            run_read_query, query
+    )
+
+    # Return the list of items obtained by node_info. Needs to be wrapped in a
+    # list since the default return value is an ItemView. Each of the items
+    # needs to also be converted from a Node to a NodeBase (or possibly further
+    # converted if necessary). Note that node_info.values() may need to be used
+    # instead of node_info.items(), but that has yet to be tested.
+    node_info = list(node_info.graph().nodes.items())
+    node_info = [ProteinNode(**node) for node in node_info]
+    return node_info
+
+
+async def get_path(start: UUID, end: UUID, max_length: int) -> List[NodeBase]:
+    query = (
+            f"MATCH "
+            f"(a {{uuid: \"{start}\"}}), "
+            f"(b {{uuid: \"{end}\"}}), "
+            f"p=shortestPath((a)-[*]-(b)) "
+            f"WHERE length(p) > 1 AND length(p) < {max_length} "
+            f"RETURN p"
+            )
+    node_info = await run_in_thread(
+            run_read_query, query
+    )
+
+    # Return the list of items obtained by node_info. Needs to be wrapped in a
+    # list since the default return value is an ItemView. Each of the items
+    # needs to also be converted from a Node to a NodeBase (or possibly further
+    # converted if necessary). Note that node_info.values() may need to be used
+    # instead of node_info.items(), but that has yet to be tested.
+    node_info = list(node_info.graph().nodes.items())
+    node_info = [NodeBase(**node) for node in node_info]
+    return node_info

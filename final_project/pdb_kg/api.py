@@ -4,8 +4,15 @@ API declaration file containing all the endpoints accessible by the program
 
 import asyncio
 from fastapi import FastAPI
-from downloader.neo4j_driver import get_driver
-from downloader.graph_db import get_annotation, get_entry
+from neo4j_driver import get_driver
+from downloader.graph_db import (
+        get_annotation, 
+        get_entry,
+        get_protein,
+        get_neighbors,
+        get_annotated,
+        get_path,
+)
 from uuid import UUID
 
 from loguru import logger
@@ -20,7 +27,8 @@ async def query(query):
 
 @app.get("/get_protein/{protein_id}")
 async def get_protein_request(protein_id: UUID):
-    return {"result": protein_id}
+    protein = get_protein(protein_id)
+    return {"result": str(protein)}
 
 
 @app.get("/get_annotation/{annotation_id}")
@@ -33,14 +41,22 @@ async def get_annotation_request(annotation_id: UUID):
 @app.get("/get_entry/{entry_id}")
 async def get_entry_request(entry_id: UUID):
     entry = await get_entry(entry_id)
-    return {"result": entry}
+    return {"result": str(entry)}
 
 
-@app.get("/get_neighbors/{neighbors_id}")
-async def get_neighbors_request(neighbors_id: UUID):
-    return {"result": neighbors_id}
+@app.get("/get_neighbors/{object_id}")
+async def get_neighbors_request(object_id: UUID):
+    nodes = await get_neighbors(object_id)
+    return {"result": str(nodes)}
 
 
-@app.get("/get_annotated/{annotated_id}")
-async def get_annotated_request(annotated_id: UUID):
-    return {"result": annotated_id}
+@app.get("/get_annotated/{annotation_id}")
+async def get_annotated_request(annotation_id: UUID):
+    nodes = await get_annotated(annotation_id)
+    return {"result": str(nodes)}
+
+
+@app.get("/get_path/{start}/{end}/{max_length}")
+async def get_path_request(start: UUID, end: UUID, max_length: int):
+    path = await get_path(start, end, max_length)
+    return {"result": str(path)}
