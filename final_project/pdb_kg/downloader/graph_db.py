@@ -5,11 +5,17 @@ import asyncio
 from functools import singledispatch
 from typing import Any, List, Set, Tuple
 from uuid import UUID
+
 from loguru import logger
+from neo4j import Result, Transaction
 
-from neo4j import Transaction, Result
-
-from ..data_model import EntryNode, NodeBase, NodeLabel, AnnotationNode, ProteinNode
+from ..data_model import (
+    AnnotationNode,
+    EntryNode,
+    NodeBase,
+    NodeLabel,
+    ProteinNode,
+)
 from ..neo4j_driver import get_driver
 
 
@@ -115,9 +121,7 @@ def fetch_read(fn, *args) -> Result:
 
     """
     with get_driver().session() as session:
-        return session.read_transaction(
-            fn, *args
-        )
+        return session.read_transaction(fn, *args)
 
 
 def run_read_query(query: str) -> Result:
@@ -126,12 +130,13 @@ def run_read_query(query: str) -> Result:
     boilerplate.
 
     Args:
-        query: The query to be ran.
+        query: The query to be run.
     """
 
     def _rt(transaction: Transaction, ts: str):
         logger.debug(f"Running transaction {query}")
         return transaction.run(ts)
+
     return fetch_read(_rt, query)
 
 
@@ -150,11 +155,9 @@ def simple_get_transaction(label, uuid: UUID) -> Result:
     return run_read_query(transaction)
 
 
-def arun(fn, *args):
+def run_in_thread(fn, *args):
     """
-    asyncio.to_thread wasn't working for myversion of python, so this is the
-    alternative method which has worked fine in my case. Provides a shortcut
-    with less boilerplate.
+    Runs a function in a separate thread, without blocking the event loop.
 
     Args:
         fn: Function to be waited on for completion
@@ -180,7 +183,7 @@ async def update_entry(entry: EntryNode) -> None:
         with get_driver().session() as session:
             session.write_transaction(_update_entry_transaction, _entry)
 
-    await arun(_update_entry_sync, entry)
+    await run_in_thread(_update_entry_sync, entry)
 
 
 async def get_entry(entry_uuid: UUID) -> EntryNode:
@@ -198,14 +201,18 @@ async def get_entry(entry_uuid: UUID) -> EntryNode:
 
     """
 
-    node_info = await arun(simple_get_transaction, Label.ENTRY, entry_uuid)
+    node_info = await run_in_thread(
+        simple_get_transaction, NodeLabel.ENTRY, entry_uuid
+    )
     node_info = node_info.single()[0]
     # Convert to an EntryNode structure.
     return EntryNode(**node_info)
 
 
 async def get_annotation(annotation_id: UUID) -> AnnotationNode:
-    node_info = await arun(simple_get_transaction, Label.ANNOTATION, annotation_id)
+    node_info = await run_in_thread(
+        simple_get_transaction, NodeLabel.ANNOTATION, annotation_id
+    )
     node_info = node_info.single()[0]
     logger.debug(node_info)
     # Convert to an EntryNode structure.
@@ -213,8 +220,9 @@ async def get_annotation(annotation_id: UUID) -> AnnotationNode:
 
 
 async def get_protein(protein_id: UUID) -> ProteinNode:
-    node_info = await arun(simple_get_transaction, Label.PROTEIN, protein_id)
+    node_info = await run_in_thread(
+        simple_get_transaction, NodeLabel.PROTEIN, protein_id
+    )
     node_info = node_info.single()[0]
     logger.debug(node_info)
     return ProteinNode(**node_info)
-

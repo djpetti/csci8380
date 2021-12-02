@@ -4,7 +4,7 @@ Contains the data model used by this application.
 
 
 import enum
-from typing import List, Optional, Set, Tuple
+from typing import Optional, Set, Tuple
 from uuid import UUID, uuid4
 
 from pydantic import BaseModel, Field
@@ -36,7 +36,7 @@ class NodeLabel(enum.Enum):
     """
     Indicates that a node represents an ontology annotation.
     """
-    DRUGBANKTARGET = enum.auto()
+    DRUGBANK_TARGET = enum.auto()
     """
     Indicates that a node represents a drug's target.
     """
@@ -44,11 +44,11 @@ class NodeLabel(enum.Enum):
     """
     Indicates that a node represents a protein database.
     """
-    RCSBENTITYHOSTORGANISM = enum.auto()
+    HOST_ORGANISM = enum.auto()
     """
     Indicates that a node represents a host organism of a protein.
     """
-    RCSBENTITYSOURCEORGANISM = enum.auto()
+    SOURCE_ORGANISM = enum.auto()
     """
     Indicates that a node represents a source organism of a protein.
     """
@@ -190,7 +190,7 @@ class RcsbEntityHostOrganism(NodeBase):
         provenance_source: What kind of data is the organism.
     """
 
-    label: Label = Label.RCSBENTITYHOSTORGANISM
+    label: NodeLabel = NodeLabel.HOST_ORGANISM
 
     common_names: Set[str]
     parent_scientific_name: str
@@ -212,7 +212,7 @@ class RcsbEntitySourceOrganism(NodeBase):
         source_type: Represents the type of the source organism.
     """
 
-    label: Label = Label.RCSBENTITYSOURCEORGANISM
+    label: NodeLabel = NodeLabel.SOURCE_ORGANISM
 
     common_names: Set[str]
     parent_scientific_name: str
@@ -254,7 +254,13 @@ class DrugbankTarget(NodeBase):
         seq_one_letter_code: Represents an amino acid sequence of the target.
     """
 
-    label: Label = Label.DRUGBANKTARGET
+    label: NodeLabel = NodeLabel.DRUGBANK_TARGET
+
+    interaction_type: str
+    name: str
+    ordinal: int
+    organism_common_name: str
+    seq_one_letter_code: str
 
 
 class AnnotationNode(Entity):
@@ -278,42 +284,18 @@ class AnnotationResponse(AnnotationNode):
     """
 
 
-class DrugbankTarget:
-    """
-    A node representing interaction type and information of a drug.
-    """
-
-    interaction_type: str
-    name: str
-    ordinal: int
-    organism_common_name: str
-    seq_one_letter_code: str
-
-
 class Database(NodeBase):
     """
     A node representing which database can find the drug/protein's components.
 
     Attributes:
-        reference_database_accession_code: Identity of the database where the protein or drug/target comes from.
-        reference_database_name: Represents where the protein or drug's target comes from.
+        reference_database_accession: Identity of the database where the
+            protein or drug/target comes from.
+        reference_database_name: Represents where the protein or drug's target
+            comes from.
     """
 
-    label: Label = Label.DATABASE
+    label: NodeLabel = NodeLabel.DATABASE
 
     reference_database_accession: str
     reference_database_name: str
-
-
-class AnnotationNode(Entity):
-    """
-    A node representing an ontology annotation in the graph database.
-
-    Attributes:
-        description: The description of the annotation.
-
-    """
-
-    label: Label = Label.ANNOTATION
-
-    description: str
