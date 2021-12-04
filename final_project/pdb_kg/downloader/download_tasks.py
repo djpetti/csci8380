@@ -10,7 +10,8 @@ from loguru import logger
 
 from .aiohttp_session import get_session
 from .data_model import EntryNode, ProteinNode, Publication, DrugNode, \
-    RcsbEntityHostOrganism, RcsbEntitySourceOrganism, Database, AnnotationNode
+    RcsbEntityHostOrganism, RcsbEntitySourceOrganism, Database, \
+    AnnotationNode, DrugbankTarget
 
 _API_ENDPOINT = "https://data.rcsb.org/rest/v1/"
 """
@@ -81,6 +82,51 @@ async def get_entry(entry_id: str) -> EntryNode:
     )
 
 
+async def get_drug_entity(cofactor_chem_comp_id: str):
+    """
+
+    Args:
+        cofactor_chem_comp_id:
+
+    Returns:
+
+    """
+    drugbank_url = urljoin(
+        _API_ENDPOINT, f"core/drugbank/{cofactor_chem_comp_id}"
+    )
+    logger.debug("Performing GET request to {}.", drugbank_url)
+
+    session = await get_session()
+    async with session.get(drugbank_url) as response:
+        entity_json = await response.json()
+
+    drugbank_info = entity_json["drugbank_info"]
+    drugbank_target = entity_json.get("drugbank_target", [])
+
+    drug_node = DrugNode(
+
+        id=cofactor_chem_comp_id,
+        name=drugbank_info["name"],
+        drug_groups=drugbank_info["drug_groups"],
+        drugbank_id=drugbank_info["drugbank_id"],
+        drugbank_name=drugbank_info["name"],
+        synonyms=drugbank_info["synonyms"],
+    )
+
+    drug_tar_list = []
+    for target in drugbank_target:
+        # print(target["organism_common_name"])
+        target_node = DrugbankTarget(
+
+            interaction_type=target["interaction_type"],
+            name=target["name"],
+            ordinal=target["ordinal"],
+        )
+        drug_tar_list.append(target_node)
+
+    return drug_node, drug_tar_list
+
+
 async def get_protein_entity(*, entry_id: str, entity_id: str):
     """
     Gets information for a specific protein by entity ID.
@@ -121,6 +167,19 @@ async def get_protein_entity(*, entry_id: str, entity_id: str):
 
     # Extract cofactor IDs.
     cofactor_ids = [c["cofactor_resource_id"] for c in cofactors]
+
+    # Extract cofactor chemical compound IDs.
+    cofactor_chem_comp_id = []
+    for c in cofactors:
+        if "cofactor_chem_comp_id" in c and c["cofactor_resource_id"].startswith("DB"):
+            cofactor_chem_comp_id.append(c["cofactor_chem_comp_id"])
+
+    drug_list = []
+    drug_tar_list_list = []
+    for cofactor in cofactor_chem_comp_id:
+        drug_node, drug_tar_list = await get_drug_entity(cofactor)
+        drug_list.append(drug_node)
+        drug_tar_list_list.append(drug_tar_list)
 
     prot_node = ProteinNode(
 
@@ -179,40 +238,4 @@ async def get_protein_entity(*, entry_id: str, entity_id: str):
             )
             anno_list.append(anno_node)
 
-    return prot_node, ho_list, so_list, db_list, anno_list
-
-
-async def get_drug_entity(*, entity_id: str) -> DrugNode:
-    """
-    Gets information for a specific drug by entity ID.
-
-    Args:
-        entity_id: The ID of the entity.
-
-    Returns:
-        The drug information.
-
-    """
-    entity_url = urljoin(
-        _API_ENDPOINT, f"core/drugbank/{entry_id}"
-    )
-    logger.debug("Performing GET request to {}.", entity_url)
-
-    session = await get_session()
-    async with session.get(entity_url) as response:
-        entity_json = await response.json()
-
-    # Extract the relevant information.
-    drugbank_info = entity_json["drugbank_info"]
-    drugbank_container_identifiers = entity_json["drugbank_container_identifiers"]
-
-    return DrugNode(
-        id=entity_id,
-        name=drugbank_info["name"],
-        drug_groups=drugbank_info["drug_groups"],
-        drugbank_id=drugbank_container_identifiers["drugbank_id"],
-        drugbank_name=drugbank_info["name"],
-        synonyms=drugbank_info["synonyms"],
-    )
-
-
+    return prot_node, ho_list, so_list, db_list, anno_list, drug_list, drug_tar_list_list
