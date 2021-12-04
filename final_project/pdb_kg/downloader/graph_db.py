@@ -10,14 +10,15 @@ from loguru import logger
 from neo4j import Result, Transaction
 from neo4j.graph import Node
 
-from data_model import (
+from .data_model import (
     AnnotationNode,
     EntryNode,
     NodeBase,
     NodeLabel,
     ProteinNode,
 )
-from neo4j_driver import get_driver
+from .download_tasks import get_entry_list, get_entry, get_protein_entity, get_drug_entity
+from .neo4j_driver import get_driver
 
 
 @singledispatch
@@ -37,7 +38,7 @@ def _to_cypher(value: Any, **kwargs: Any) -> str:
 
 @_to_cypher.register
 def _(value: str) -> str:
-    return f"'{value}'"
+    return f"\"{value}\""
 
 
 @_to_cypher.register
@@ -168,9 +169,9 @@ def run_in_thread(fn, *args):
     return asyncio.get_running_loop().run_in_executor(None, fn, *args)
 
 
-async def update_entry(entry: EntryNode) -> None:
+async def update_node(entry: NodeBase) -> None:
     """
-    Updates or creates a particular entry node.
+    Updates or creates a particular node.
 
     Notes:
         The synchronous database access is performed in a separate thread.
@@ -187,7 +188,7 @@ async def update_entry(entry: EntryNode) -> None:
     await run_in_thread(_update_entry_sync, entry)
 
 
-async def get_entry(entry_uuid: UUID) -> EntryNode:
+async def get_entry_2(entry_uuid: UUID) -> EntryNode:
     """
     Fetches a particular entry node by UUID.
 
@@ -301,7 +302,7 @@ async def do_query(cql: str) -> None:
         session.run(cql)
 
 
-def create_relationship(e1: object, e2: object, relation: str):
+async def create_relationship(e1: object, e2: object, relation: str):
     """
     Create a relationship between two existed nodes(entities) by using Neo4J query sentence.
 
@@ -316,7 +317,7 @@ def create_relationship(e1: object, e2: object, relation: str):
           "WHERE a.uuid = '" + str(e1.uuid) + "' AND b.uuid = '" + str(e2.uuid) + "' " \
           "CREATE (a)-[:" + relation + "]->(b)"
 
-    asyncio.run(do_query(cql))
+    await do_query(cql)
 
 
 async def form_kg() -> None:
@@ -332,21 +333,37 @@ async def form_kg() -> None:
     # get each entry in entry list
     for entry_id in entry_list:
         entry = await get_entry(entry_id=entry_id)
-        await update_entry(entry)
+        await update_node(entry)
+
+        # drug part
+        # await get_drug_entity()
 
     # get each protein which belongs to a specific entry
         for prot_entity in entry.protein_entity_ids:
             prot_list = []
-            prot_node = await get_protein_entity(entry_id=entry_id, entity_id=prot_entity)
+            prot_node, host_organ_node, source_organ_node, db_node, anno_node = \
+                await get_protein_entity(entry_id=entry_id, entity_id=prot_entity)
 
-            await update_entry(prot_node)
-            create_relationship(entry, prot_node, "HAS_PROTEIN")
+            await update_node(prot_node)
+            await create_relationship(entry, prot_node, "HAS_PROTEIN")
+            for ho in host_organ_node:
+                await update_node(ho)
+                await create_relationship(prot_node, ho, "HOST_ON")
+            for so in source_organ_node:
+                await update_node(so)
+                await create_relationship(prot_node, so, "SOURCE_FROM")
+            for db in db_node:
+                await update_node(db)
+                await create_relationship(prot_node, db, "REFER_TO")
+            for anno in anno_node:
+                await update_node(anno)
+                await create_relationship(prot_node, anno, "HAS_ANNOTATION")
 
     # Create relationship between nodes have similar sequence
             if len(prot_list) > 1:
                 for prev_prot in prot_list:
-                    create_relationship(prev_prot, prot_node, "SIMILAR_SEQUENCE")
-                    create_relationship(prot_node, prev_prot, "SIMILAR_SEQUENCE")
+                    await create_relationship(prev_prot, prot_node, "SIMILAR_SEQUENCE")
+                    await create_relationship(prot_node, prev_prot, "SIMILAR_SEQUENCE")
             prot_list.append(prot_node)
 
 
@@ -374,4 +391,3 @@ def delete_all() -> None:
     cql = "MATCH (n) DETACH DELETE n"
 
     asyncio.run(do_query(cql))
-    
