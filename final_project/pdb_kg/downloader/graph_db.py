@@ -8,17 +8,16 @@ from uuid import UUID
 
 from loguru import logger
 from neo4j import Result, Transaction
-from neo4j.graph import Node
 
-from .data_model import (
+from ..data_model import (
     AnnotationNode,
     EntryNode,
     NodeBase,
     NodeLabel,
     ProteinNode,
 )
-from .download_tasks import get_entry_list, get_entry, get_protein_entity, get_drug_entity
-from .neo4j_driver import get_driver
+from ..neo4j_driver import get_driver
+from .download_tasks import get_entry, get_entry_list, get_protein_entity
 
 
 @singledispatch
@@ -38,7 +37,9 @@ def _to_cypher(value: Any, **kwargs: Any) -> str:
 
 @_to_cypher.register
 def _(value: str) -> str:
-    return f"\"{value}\""
+    # Remove quotes in the string.
+    value = value.replace('"', "")
+    return f'"{value}"'
 
 
 @_to_cypher.register
@@ -231,10 +232,8 @@ async def get_protein(protein_id: UUID) -> ProteinNode:
 
 
 async def get_neighbors(object_id: UUID) -> List[NodeBase]:
-    query = f"MATCH ({{uuid: \"{object_id}\"}})-[*1]-(c) RETURN c"
-    node_info = await run_in_thread(
-            run_read_query, query
-    )
+    query = f'MATCH ({{uuid: "{object_id}"}})-[*1]-(c) RETURN c'
+    node_info = await run_in_thread(run_read_query, query)
 
     # Return the list of items obtained by node_info. Needs to be wrapped in a
     # list since the default return value is an ItemView. Each of the items
@@ -249,12 +248,10 @@ async def get_neighbors(object_id: UUID) -> List[NodeBase]:
 
 async def get_annotated(annotation_id: UUID) -> List[ProteinNode]:
     query = (
-            f"MATCH ({{uuid: \"{annotation_id}\"}})"
-            f"-[*1]-(c:{NodeLabel.PROTEIN.name}) RETURN c"
+        f'MATCH ({{uuid: "{annotation_id}"}})'
+        f"-[*1]-(c:{NodeLabel.PROTEIN.name}) RETURN c"
     )
-    node_info = await run_in_thread(
-            run_read_query, query
-    )
+    node_info = await run_in_thread(run_read_query, query)
 
     # Return the list of items obtained by node_info. Needs to be wrapped in a
     # list since the default return value is an ItemView. Each of the items
@@ -268,16 +265,14 @@ async def get_annotated(annotation_id: UUID) -> List[ProteinNode]:
 
 async def get_path(start: UUID, end: UUID, max_length: int) -> List[NodeBase]:
     query = (
-            f"MATCH "
-            f"(a {{uuid: \"{start}\"}}), "
-            f"(b {{uuid: \"{end}\"}}), "
-            f"p=shortestPath((a)-[*]-(b)) "
-            f"WHERE length(p) > 1 AND length(p) < {max_length} "
-            f"RETURN p"
-            )
-    node_info = await run_in_thread(
-            run_read_query, query
+        f"MATCH "
+        f'(a {{uuid: "{start}"}}), '
+        f'(b {{uuid: "{end}"}}), '
+        f"p=shortestPath((a)-[*]-(b)) "
+        f"WHERE length(p) > 1 AND length(p) < {max_length} "
+        f"RETURN p"
     )
+    node_info = await run_in_thread(run_read_query, query)
 
     # Return the list of items obtained by node_info. Needs to be wrapped in a
     # list since the default return value is an ItemView. Each of the items
@@ -304,7 +299,8 @@ async def do_query(cql: str) -> None:
 
 async def create_relationship(e1: object, e2: object, relation: str):
     """
-    Create a relationship between two existed nodes(entities) by using Neo4J query sentence.
+    Create a relationship between two existed nodes(entities) by using Neo4J
+    query sentence.
 
     Args:
         e1: Entity 1.
@@ -313,9 +309,15 @@ async def create_relationship(e1: object, e2: object, relation: str):
 
     """
 
-    cql = "MATCH (a:" + e1.label.name + "), (b:" + e2.label.name + ") " \
-          "WHERE a.uuid = '" + str(e1.uuid) + "' AND b.uuid = '" + str(e2.uuid) + "' " \
-          "CREATE (a)-[:" + relation + "]->(b)"
+    cql = (
+        "MATCH (a:" + e1.label.name + "), (b:" + e2.label.name + ") "
+        "WHERE a.uuid = '"
+        + str(e1.uuid)
+        + "' AND b.uuid = '"
+        + str(e2.uuid)
+        + "' "
+        "CREATE (a)-[:" + relation + "]->(b)"
+    )
 
     await do_query(cql)
 
@@ -338,11 +340,18 @@ async def form_kg() -> None:
         # drug part
         # await get_drug_entity()
 
-    # get each protein which belongs to a specific entry
+        # get each protein which belongs to a specific entry
         for prot_entity in entry.protein_entity_ids:
             prot_list = []
-            prot_node, host_organ_node, source_organ_node, db_node, anno_node = \
-                await get_protein_entity(entry_id=entry_id, entity_id=prot_entity)
+            (
+                prot_node,
+                host_organ_node,
+                source_organ_node,
+                db_node,
+                anno_node,
+            ) = await get_protein_entity(
+                entry_id=entry_id, entity_id=prot_entity
+            )
 
             await update_node(prot_node)
             await create_relationship(entry, prot_node, "HAS_PROTEIN")
@@ -359,11 +368,15 @@ async def form_kg() -> None:
                 await update_node(anno)
                 await create_relationship(prot_node, anno, "HAS_ANNOTATION")
 
-    # Create relationship between nodes have similar sequence
+            # Create relationship between nodes have similar sequence
             if len(prot_list) > 1:
                 for prev_prot in prot_list:
-                    await create_relationship(prev_prot, prot_node, "SIMILAR_SEQUENCE")
-                    await create_relationship(prot_node, prev_prot, "SIMILAR_SEQUENCE")
+                    await create_relationship(
+                        prev_prot, prot_node, "SIMILAR_SEQUENCE"
+                    )
+                    await create_relationship(
+                        prot_node, prev_prot, "SIMILAR_SEQUENCE"
+                    )
             prot_list.append(prot_node)
 
 
