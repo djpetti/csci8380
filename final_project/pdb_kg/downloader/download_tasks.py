@@ -9,7 +9,8 @@ from urllib.parse import urljoin
 from loguru import logger
 
 from .aiohttp_session import get_session
-from ..data_model import EntryNode, ProteinNode, Publication
+from .data_model import EntryNode, ProteinNode, Publication, DrugNode, \
+    RcsbEntityHostOrganism, RcsbEntitySourceOrganism, Database, AnnotationNode
 
 _API_ENDPOINT = "https://data.rcsb.org/rest/v1/"
 """
@@ -80,7 +81,7 @@ async def get_entry(entry_id: str) -> EntryNode:
     )
 
 
-async def get_protein_entity(*, entry_id: str, entity_id: str) -> ProteinNode:
+async def get_protein_entity(*, entry_id: str, entity_id: str):
     """
     Gets information for a specific protein by entity ID.
 
@@ -106,6 +107,9 @@ async def get_protein_entity(*, entry_id: str, entity_id: str) -> ProteinNode:
     poly_metadata = entity_json["rcsb_polymer_entity"]
     annotations = entity_json.get("rcsb_polymer_entity_annotation", [])
     cofactors = entity_json.get("rcsb_target_cofactors", [])
+    rcsb_entity_host_organism = entity_json.get("rcsb_entity_host_organism", [])
+    rcsb_entity_source_organism = entity_json.get("rcsb_entity_source_organism", [])
+    rcsb_polymer_entity_align = entity_json.get("rcsb_polymer_entity_align", [])
 
     # Filter the annotations to GO.
     go_ids = []
@@ -118,11 +122,97 @@ async def get_protein_entity(*, entry_id: str, entity_id: str) -> ProteinNode:
     # Extract cofactor IDs.
     cofactor_ids = [c["cofactor_resource_id"] for c in cofactors]
 
-    return ProteinNode(
-        entry_id=entry_id,
+    prot_node = ProteinNode(
+
         id=entity_id,
         name=poly_metadata["pdbx_description"],
+        entry_id=entry_id,
         sequence=poly_info["pdbx_seq_one_letter_code_can"],
         annotations=go_ids,
         cofactors=cofactor_ids,
     )
+
+    ho_list = []
+    for host_organism in rcsb_entity_host_organism:
+        if "ncbi_common_names" in host_organism:
+            host_organ_node = RcsbEntityHostOrganism(
+
+                common_names=host_organism["ncbi_common_names"],
+                parent_scientific_name=host_organism["ncbi_parent_scientific_name"],
+                scientific_name=host_organism["ncbi_scientific_name"],
+                taxonomy_id=host_organism["ncbi_taxonomy_id"],
+                provenance_source=host_organism["provenance_source"],
+            )
+            ho_list.append(host_organ_node)
+
+    so_list = []
+    for source_organism in rcsb_entity_source_organism:
+        if "ncbi_common_names" in source_organism:
+            sorce_organ_ndoe = RcsbEntitySourceOrganism(
+
+                common_names=source_organism["ncbi_common_names"],
+                parent_scientific_name=source_organism["ncbi_parent_scientific_name"],
+                scientific_name=source_organism["ncbi_scientific_name"],
+                taxonomy_id=source_organism["ncbi_taxonomy_id"],
+                provenance_source=source_organism["provenance_source"],
+                source_type=source_organism["source_type"],
+            )
+            so_list.append(sorce_organ_ndoe)
+
+    db_list = []
+    for db in rcsb_polymer_entity_align:
+        db_node = Database(
+
+            reference_database_accession=db["reference_database_accession"],
+            reference_database_name=db["reference_database_name"],
+        )
+        db_list.append(db_node)
+
+    anno_list = []
+    for annotation in annotations:
+        if annotation["annotation_id"].startswith("GO:"):
+            anno_node = AnnotationNode(
+
+                id=annotation["annotation_id"],
+                name=annotation["name"],
+                description=annotation["name"],
+            )
+            anno_list.append(anno_node)
+
+    return prot_node, ho_list, so_list, db_list, anno_list
+
+
+async def get_drug_entity(*, entity_id: str) -> DrugNode:
+    """
+    Gets information for a specific drug by entity ID.
+
+    Args:
+        entity_id: The ID of the entity.
+
+    Returns:
+        The drug information.
+
+    """
+    entity_url = urljoin(
+        _API_ENDPOINT, f"core/drugbank/{entry_id}"
+    )
+    logger.debug("Performing GET request to {}.", entity_url)
+
+    session = await get_session()
+    async with session.get(entity_url) as response:
+        entity_json = await response.json()
+
+    # Extract the relevant information.
+    drugbank_info = entity_json["drugbank_info"]
+    drugbank_container_identifiers = entity_json["drugbank_container_identifiers"]
+
+    return DrugNode(
+        id=entity_id,
+        name=drugbank_info["name"],
+        drug_groups=drugbank_info["drug_groups"],
+        drugbank_id=drugbank_container_identifiers["drugbank_id"],
+        drugbank_name=drugbank_info["name"],
+        synonyms=drugbank_info["synonyms"],
+    )
+
+
