@@ -1,10 +1,10 @@
 import asyncio
-from downloader import graph_db
+from downloader.graph_db import delete_all, form_kg, save_kg_to_json
 
 
 def main():
     delete_all()
-    asyncio.run(form_kg()）
+    asyncio.run(form_kg())
     save_kg_to_json("all")
 
 

@@ -8,8 +8,8 @@ from urllib.parse import urljoin
 
 from loguru import logger
 
-from .aiohttp_session import get_session
-from .data_model import EntryNode, ProteinNode, Publication, DrugNode, \
+from downloader.aiohttp_session import get_session
+from data_model import EntryNode, ProteinNode, Publication, DrugNode, \
     RcsbEntityHostOrganism, RcsbEntitySourceOrganism, Database, \
     AnnotationNode, DrugbankTarget
 

@@ -115,7 +115,7 @@ class EntryResponse(EntryNode):
 
     """
 
-    protein_entity_ids: Set[UUID]
+    protein_entity_uuids: Set[UUID]
 
 
 class Entity(NodeBase):

@@ -10,15 +10,23 @@ from loguru import logger
 from neo4j import Result, Transaction
 from neo4j.graph import Node
 
-from ..data_model import (
+from data_model import (
     AnnotationNode,
+    EntryResponse,
     EntryNode,
     NodeBase,
     NodeLabel,
     ProteinNode,
+    RcsbEntityHostOrganism,
+    RcsbEntitySourceOrganism,
+    Database,
+    DrugNode,
+    DrugbankTarget
 )
-from .download_tasks import get_entry_list, get_entry, get_protein_entity, get_drug_entity
-from ..neo4j_driver import get_driver
+from downloader.download_tasks import get_entry_list, get_entry, get_protein_entity, get_drug_entity
+from neo4j_driver import get_driver
+
+from pydantic.error_wrappers import ValidationError
 
 
 @singledispatch
@@ -128,7 +136,7 @@ def fetch_read(fn, *args) -> Result:
         return session.read_transaction(fn, *args)
 
 
-def run_read_query(query: str) -> Result:
+def run_read_query(query: str):
     """
     Runs a query with a simple read request. This function helps to remove
     boilerplate.
@@ -139,12 +147,13 @@ def run_read_query(query: str) -> Result:
 
     def _rt(transaction: Transaction, ts: str):
         logger.debug(f"Running transaction {query}")
-        return transaction.run(ts)
+        res = transaction.run(ts)
+        return list(res.graph().nodes)
 
     return fetch_read(_rt, query)
 
 
-def simple_get_transaction(label, uuid: UUID) -> Result:
+def simple_get_transaction(label, uuid: UUID):
     """
     Runs a simple get request using any of the labellings from the Label class
     and the uuid corresponding to the element to be retrieved.
@@ -190,7 +199,7 @@ async def update_node(entry: NodeBase) -> None:
     await run_in_thread(_update_entry_sync, entry)
 
 
-async def get_entry_2(entry_uuid: UUID) -> EntryNode:
+async def get_entry_2(entry_uuid: UUID) -> EntryResponse:
     """
     Fetches a particular entry node by UUID.
 
@@ -206,65 +215,140 @@ async def get_entry_2(entry_uuid: UUID) -> EntryNode:
     """
 
     node_info = await run_in_thread(
-        simple_get_transaction, NodeLabel.ENTRY, entry_uuid
+            simple_get_transaction, NodeLabel.ENTRY, entry_uuid
+            )
+
+    query = (
+            f'MATCH (e:ENTRY {{uuid: "{entry_uuid}"}})'
+            f'-[:HAS_PROTEIN]-(p) RETURN p'
+            )
+    protein_info = await run_in_thread(
+        run_read_query, query     
     )
-    node_info = node_info.single()[0]
-    # Convert to an EntryNode structure.
-    return EntryNode(**node_info)
+    protein_info = [x.get('uuid') for x in protein_info]
+    return EntryResponse(**node_info[0], protein_entity_uuids=protein_info)
 
 
 async def get_annotation(annotation_id: UUID) -> AnnotationNode:
+    """
+    Fetches an annotation by its UUID.
+
+    Args:
+        annotation_id: The UUID of the annotation.
+
+    Returns: 
+        An AnnotationNode with the desired UUID if found.
+
+    """
     node_info = await run_in_thread(
         simple_get_transaction, NodeLabel.ANNOTATION, annotation_id
     )
-    node_info = node_info.single()[0]
-    logger.debug(node_info)
     # Convert to an EntryNode structure.
-    return AnnotationNode(**node_info)
+    return AnnotationNode(**node_info[0])
 
 
 async def get_protein(protein_id: UUID) -> ProteinNode:
+    """
+    Fetches an protein by its UUID.
+
+    Args:
+        protein_id: The UUID of the annotation.
+
+    Returns: 
+        An AnnotationNode with the desired UUID if found.
+
+    """
     node_info = await run_in_thread(
         simple_get_transaction, NodeLabel.PROTEIN, protein_id
     )
-    node_info = node_info.single()[0]
     logger.debug(node_info)
-    return ProteinNode(**node_info)
+    return ProteinNode(**node_info[0])
+
+
+def convert_node(node_info):
+    """
+    Given a Node fetched from Neo4j, parses the label retrieved and converts the
+    node into the pydantic version defined by our data_model.
+
+    Args: 
+        node_info: Information for the node retrieved from the Neo4j graph
+
+    Returns: 
+        Node corresponding to the type of node defined by the label.
+
+    """
+
+    node_type, = node_info.labels
+    try:
+        return NodeBase(label=node_type.lower(), **node_info)
+    except ValidationError:
+        if node_type == "DRUGBANK_TARGET":
+            return NodeBase(label=1, **node_info)
+        elif node_type == "DATABASE":
+            return NodeBase(label=2, **node_info)
+        elif node_type == "HOST_ORGANISM":
+            return NodeBase(label=3, **node_info)
+        elif node_type == "SOURCE_ORGANISM":
+            return NodeBase(label=4, **node_info)
 
 
 async def get_neighbors(object_id: UUID) -> List[NodeBase]:
+    """
+    Finds all the neighbors of any object in the Neo4j graph. They all exist at
+    a 1 hop from the given object.
+
+    Args:
+        object_id: The UUID of the object to find the neighbors for 
+
+    Returns:
+        List of nodes that are directly connected to the given object. Each of
+        the nodes will have its properties fully defined.
+    """
     query = f'MATCH ({{uuid: "{object_id}"}})-[*1]-(c) RETURN c'
     node_info = await run_in_thread(run_read_query, query)
-
-    # Return the list of items obtained by node_info. Needs to be wrapped in a
-    # list since the default return value is an ItemView. Each of the items
-    # needs to also be converted from a Node to a NodeBase (or possibly further
-    # converted if necessary). Note that node_info.values() may need to be used
-    # instead of node_info.items(), but that has yet to be tested.
-    node_info = list(node_info.graph().nodes.items())
-    node_info = [NodeBase(**node) for node in node_info]
-
+    for node in node_info:
+        convert_node(node)
+    node_info = [convert_node(node) for node in node_info]
     return node_info
 
 
 async def get_annotated(annotation_id: UUID) -> List[ProteinNode]:
+    """
+    Finds all the neighbors of an annotation in the Neo4j graph. They all exist
+    at a 1 hop from the given annotation.
+
+    Args:
+        annotation_id: The UUID of the annotation to find the neighbors for 
+
+    Returns:
+        List of nodes that are directly connected to the given annotation. Each
+        of the nodes will have its properties fully defined.
+    """
     query = (
         f'MATCH ({{uuid: "{annotation_id}"}})'
         f"-[*1]-(c:{NodeLabel.PROTEIN.name}) RETURN c"
     )
     node_info = await run_in_thread(run_read_query, query)
-
-    # Return the list of items obtained by node_info. Needs to be wrapped in a
-    # list since the default return value is an ItemView. Each of the items
-    # needs to also be converted from a Node to a NodeBase (or possibly further
-    # converted if necessary). Note that node_info.values() may need to be used
-    # instead of node_info.items(), but that has yet to be tested.
-    node_info = list(node_info.graph().nodes.items())
     node_info = [ProteinNode(**node) for node in node_info]
     return node_info
 
 
 async def get_path(start: UUID, end: UUID, max_length: int) -> List[NodeBase]:
+    """
+    Finds the shortest path between two given objects in the Neo4j graph. If the
+    path is not within the max length or if the path does not exist, an empty
+    list is returned.
+
+    Args:
+        start: The UUID of the object at the start of the path
+        end: The UUID of the object at the end of the path
+        max_length: The maximum length of the path allowed
+
+    Returns: 
+        List of nodes in order of which they appear from start to end. If the
+        path is not within the max length or if the path does not exist, an
+        empty list is returned.
+    """
     query = (
             f"MATCH "
             f'(a {{uuid: "{start}"}}), '
@@ -274,14 +358,7 @@ async def get_path(start: UUID, end: UUID, max_length: int) -> List[NodeBase]:
             f"RETURN p"
     )
     node_info = await run_in_thread(run_read_query, query)
-
-    # Return the list of items obtained by node_info. Needs to be wrapped in a
-    # list since the default return value is an ItemView. Each of the items
-    # needs to also be converted from a Node to a NodeBase (or possibly further
-    # converted if necessary). Note that node_info.values() may need to be used
-    # instead of node_info.items(), but that has yet to be tested.
-    node_info = list(node_info.graph().nodes.items())
-    node_info = [NodeBase(**node) for node in node_info]
+    node_info = [convert_node(node) for node in node_info]
     return node_info
 
 
