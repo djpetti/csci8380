@@ -247,7 +247,10 @@ async def get_go_id_by_name(string: str) -> List[UUID]:
     Returns:
         A list of UUIDs corresponding to retrieved pdb entries
     """
-    query = (f"MATCH (g:ANNOTATION {{id: '{string}'}}) RETURN g")
+    query = (
+            f"MATCH (p:PROTEIN)-[:HAS_ANNOTATION]-"
+            f"(g:ANNOTATION {{id: '{string}'}}) RETURN p"
+            )
     query_res = await run_in_thread(run_read_query, query)
     query_res = [x.get("uuid") for x in query_res]
     return query_res
