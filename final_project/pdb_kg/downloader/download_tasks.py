@@ -8,10 +8,18 @@ from urllib.parse import urljoin
 
 from loguru import logger
 
-from downloader.aiohttp_session import get_session
-from data_model import EntryNode, ProteinNode, Publication, DrugNode, \
-    RcsbEntityHostOrganism, RcsbEntitySourceOrganism, Database, \
-    AnnotationNode, DrugbankTarget
+from ..data_model import (
+    AnnotationNode,
+    Database,
+    DrugbankTarget,
+    DrugNode,
+    EntryNode,
+    ProteinNode,
+    Publication,
+    RcsbEntityHostOrganism,
+    RcsbEntitySourceOrganism,
+)
+from .aiohttp_session import get_session
 
 _API_ENDPOINT = "https://data.rcsb.org/rest/v1/"
 """
@@ -104,7 +112,6 @@ async def get_drug_entity(cofactor_chem_comp_id: str):
     drugbank_target = entity_json.get("drugbank_target", [])
 
     drug_node = DrugNode(
-
         id=cofactor_chem_comp_id,
         name=drugbank_info["name"],
         drug_groups=drugbank_info["drug_groups"],
@@ -117,7 +124,6 @@ async def get_drug_entity(cofactor_chem_comp_id: str):
     for target in drugbank_target:
         # print(target["organism_common_name"])
         target_node = DrugbankTarget(
-
             interaction_type=target["interaction_type"],
             name=target["name"],
             ordinal=target["ordinal"],
@@ -153,9 +159,15 @@ async def get_protein_entity(*, entry_id: str, entity_id: str):
     poly_metadata = entity_json["rcsb_polymer_entity"]
     annotations = entity_json.get("rcsb_polymer_entity_annotation", [])
     cofactors = entity_json.get("rcsb_target_cofactors", [])
-    rcsb_entity_host_organism = entity_json.get("rcsb_entity_host_organism", [])
-    rcsb_entity_source_organism = entity_json.get("rcsb_entity_source_organism", [])
-    rcsb_polymer_entity_align = entity_json.get("rcsb_polymer_entity_align", [])
+    rcsb_entity_host_organism = entity_json.get(
+        "rcsb_entity_host_organism", []
+    )
+    rcsb_entity_source_organism = entity_json.get(
+        "rcsb_entity_source_organism", []
+    )
+    rcsb_polymer_entity_align = entity_json.get(
+        "rcsb_polymer_entity_align", []
+    )
 
     # Filter the annotations to GO.
     go_ids = []
@@ -171,7 +183,9 @@ async def get_protein_entity(*, entry_id: str, entity_id: str):
     # Extract cofactor chemical compound IDs.
     cofactor_chem_comp_id = []
     for c in cofactors:
-        if "cofactor_chem_comp_id" in c and c["cofactor_resource_id"].startswith("DB"):
+        if "cofactor_chem_comp_id" in c and c[
+            "cofactor_resource_id"
+        ].startswith("DB"):
             cofactor_chem_comp_id.append(c["cofactor_chem_comp_id"])
 
     drug_list = []
@@ -182,7 +196,6 @@ async def get_protein_entity(*, entry_id: str, entity_id: str):
         drug_tar_list_list.append(drug_tar_list)
 
     prot_node = ProteinNode(
-
         id=entity_id,
         name=poly_metadata["pdbx_description"],
         entry_id=entry_id,
@@ -195,9 +208,10 @@ async def get_protein_entity(*, entry_id: str, entity_id: str):
     for host_organism in rcsb_entity_host_organism:
         if "ncbi_common_names" in host_organism:
             host_organ_node = RcsbEntityHostOrganism(
-
                 common_names=host_organism["ncbi_common_names"],
-                parent_scientific_name=host_organism["ncbi_parent_scientific_name"],
+                parent_scientific_name=host_organism[
+                    "ncbi_parent_scientific_name"
+                ],
                 scientific_name=host_organism["ncbi_scientific_name"],
                 taxonomy_id=host_organism["ncbi_taxonomy_id"],
                 provenance_source=host_organism["provenance_source"],
@@ -208,9 +222,10 @@ async def get_protein_entity(*, entry_id: str, entity_id: str):
     for source_organism in rcsb_entity_source_organism:
         if "ncbi_common_names" in source_organism:
             sorce_organ_ndoe = RcsbEntitySourceOrganism(
-
                 common_names=source_organism["ncbi_common_names"],
-                parent_scientific_name=source_organism["ncbi_parent_scientific_name"],
+                parent_scientific_name=source_organism[
+                    "ncbi_parent_scientific_name"
+                ],
                 scientific_name=source_organism["ncbi_scientific_name"],
                 taxonomy_id=source_organism["ncbi_taxonomy_id"],
                 provenance_source=source_organism["provenance_source"],
@@ -221,7 +236,6 @@ async def get_protein_entity(*, entry_id: str, entity_id: str):
     db_list = []
     for db in rcsb_polymer_entity_align:
         db_node = Database(
-
             reference_database_accession=db["reference_database_accession"],
             reference_database_name=db["reference_database_name"],
         )
@@ -231,11 +245,18 @@ async def get_protein_entity(*, entry_id: str, entity_id: str):
     for annotation in annotations:
         if annotation["annotation_id"].startswith("GO:"):
             anno_node = AnnotationNode(
-
                 id=annotation["annotation_id"],
                 name=annotation["name"],
                 description=annotation["name"],
             )
             anno_list.append(anno_node)
 
-    return prot_node, ho_list, so_list, db_list, anno_list, drug_list, drug_tar_list_list
+    return (
+        prot_node,
+        ho_list,
+        so_list,
+        db_list,
+        anno_list,
+        drug_list,
+        drug_tar_list_list,
+    )

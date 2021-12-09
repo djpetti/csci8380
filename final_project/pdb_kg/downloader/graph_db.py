@@ -8,25 +8,17 @@ from uuid import UUID
 
 from loguru import logger
 from neo4j import Result, Transaction
-from neo4j.graph import Node
+from pydantic.error_wrappers import ValidationError
 
-from data_model import (
+from ..data_model import (
     AnnotationNode,
-    EntryResponse,
     EntryNode,
+    EntryResponse,
     NodeBase,
     NodeLabel,
     ProteinNode,
-    RcsbEntityHostOrganism,
-    RcsbEntitySourceOrganism,
-    Database,
-    DrugNode,
-    DrugbankTarget
 )
-from downloader.download_tasks import get_entry_list, get_entry, get_protein_entity, get_drug_entity
-from neo4j_driver import get_driver
-
-from pydantic.error_wrappers import ValidationError
+from ..neo4j_driver import get_driver
 
 
 @singledispatch
@@ -215,17 +207,15 @@ async def get_entry_2(entry_uuid: UUID) -> EntryResponse:
     """
 
     node_info = await run_in_thread(
-            simple_get_transaction, NodeLabel.ENTRY, entry_uuid
-            )
+        simple_get_transaction, NodeLabel.ENTRY, entry_uuid
+    )
 
     query = (
-            f'MATCH (e:ENTRY {{uuid: "{entry_uuid}"}})'
-            f'-[:HAS_PROTEIN]-(p) RETURN p'
-            )
-    protein_info = await run_in_thread(
-        run_read_query, query     
+        f'MATCH (e:ENTRY {{uuid: "{entry_uuid}"}})'
+        f"-[:HAS_PROTEIN]-(p) RETURN p"
     )
-    protein_info = [x.get('uuid') for x in protein_info]
+    protein_info = await run_in_thread(run_read_query, query)
+    protein_info = [x.get("uuid") for x in protein_info]
     return EntryResponse(**node_info[0], protein_entity_uuids=protein_info)
 
 
@@ -236,7 +226,7 @@ async def get_annotation(annotation_id: UUID) -> AnnotationNode:
     Args:
         annotation_id: The UUID of the annotation.
 
-    Returns: 
+    Returns:
         An AnnotationNode with the desired UUID if found.
 
     """
@@ -254,7 +244,7 @@ async def get_protein(protein_id: UUID) -> ProteinNode:
     Args:
         protein_id: The UUID of the annotation.
 
-    Returns: 
+    Returns:
         An AnnotationNode with the desired UUID if found.
 
     """
@@ -267,18 +257,18 @@ async def get_protein(protein_id: UUID) -> ProteinNode:
 
 def convert_node(node_info):
     """
-    Given a Node fetched from Neo4j, parses the label retrieved and converts the
-    node into the pydantic version defined by our data_model.
+    Given a Node fetched from Neo4j, parses the label retrieved and converts
+    the node into the pydantic version defined by our data_model.
 
-    Args: 
+    Args:
         node_info: Information for the node retrieved from the Neo4j graph
 
-    Returns: 
+    Returns:
         Node corresponding to the type of node defined by the label.
 
     """
 
-    node_type, = node_info.labels
+    (node_type,) = node_info.labels
     try:
         return NodeBase(label=node_type.lower(), **node_info)
     except ValidationError:
@@ -298,7 +288,7 @@ async def get_neighbors(object_id: UUID) -> List[NodeBase]:
     a 1 hop from the given object.
 
     Args:
-        object_id: The UUID of the object to find the neighbors for 
+        object_id: The UUID of the object to find the neighbors for
 
     Returns:
         List of nodes that are directly connected to the given object. Each of
@@ -318,7 +308,7 @@ async def get_annotated(annotation_id: UUID) -> List[ProteinNode]:
     at a 1 hop from the given annotation.
 
     Args:
-        annotation_id: The UUID of the annotation to find the neighbors for 
+        annotation_id: The UUID of the annotation to find the neighbors for
 
     Returns:
         List of nodes that are directly connected to the given annotation. Each
@@ -335,27 +325,27 @@ async def get_annotated(annotation_id: UUID) -> List[ProteinNode]:
 
 async def get_path(start: UUID, end: UUID, max_length: int) -> List[NodeBase]:
     """
-    Finds the shortest path between two given objects in the Neo4j graph. If the
-    path is not within the max length or if the path does not exist, an empty
-    list is returned.
+    Finds the shortest path between two given objects in the Neo4j graph. If
+    the path is not within the max length or if the path does not exist,
+    an empty list is returned.
 
     Args:
         start: The UUID of the object at the start of the path
         end: The UUID of the object at the end of the path
         max_length: The maximum length of the path allowed
 
-    Returns: 
+    Returns:
         List of nodes in order of which they appear from start to end. If the
         path is not within the max length or if the path does not exist, an
         empty list is returned.
     """
     query = (
-            f"MATCH "
-            f'(a {{uuid: "{start}"}}), '
-            f'(b {{uuid: "{end}"}}), '
-            f"p=shortestPath((a)-[*]-(b)) "
-            f"WHERE length(p) > 1 AND length(p) < {max_length} "
-            f"RETURN p"
+        f"MATCH "
+        f'(a {{uuid: "{start}"}}), '
+        f'(b {{uuid: "{end}"}}), '
+        f"p=shortestPath((a)-[*]-(b)) "
+        f"WHERE length(p) > 1 AND length(p) < {max_length} "
+        f"RETURN p"
     )
     node_info = await run_in_thread(run_read_query, query)
     node_info = [convert_node(node) for node in node_info]
@@ -377,7 +367,8 @@ async def do_query(cql: str) -> None:
 
 async def create_relationship(e1: object, e2: object, relation: str):
     """
-    Create a relationship between two existed nodes(entities) by using Neo4J query sentence.
+    Create a relationship between two existed nodes(entities) by using Neo4J
+    query sentence.
 
     Args:
         e1: Entity 1.
@@ -387,75 +378,16 @@ async def create_relationship(e1: object, e2: object, relation: str):
     """
 
     cql = (
-            "MATCH (a:" + e1.label.name + "), (b:" + e2.label.name + ") "
-            "WHERE a.uuid = '"
-            + str(e1.uuid)
-            + "' AND b.uuid = '"
-            + str(e2.uuid)
-            + "' "
-            "CREATE (a)-[:" + relation + "]->(b)"
+        "MATCH (a:" + e1.label.name + "), (b:" + e2.label.name + ") "
+        "WHERE a.uuid = '"
+        + str(e1.uuid)
+        + "' AND b.uuid = '"
+        + str(e2.uuid)
+        + "' "
+        "CREATE (a)-[:" + relation + "]->(b)"
     )
 
     await do_query(cql)
-
-
-async def form_kg() -> None:
-    """
-    Create Neo4J database by adding nodes and relationships.
-
-    Returns: None
-
-    """
-
-    entry_list = await get_entry_list()
-
-    # get each entry in entry list
-    for entry_id in entry_list:
-        entry = await get_entry(entry_id=entry_id)
-        await update_node(entry)
-
-    # get each protein which belongs to a specific entry
-        for prot_entity in entry.protein_entity_ids:
-            prot_list = []
-            prot_node, host_organ_node, source_organ_node, db_node, anno_node, drug_node, drug_tar_list_list = \
-                await get_protein_entity(entry_id=entry_id, entity_id=prot_entity)
-            await update_node(prot_node)
-            await create_relationship(entry, prot_node, "HAS_PROTEIN")
-
-    # get Rcsb Entity Host Organism
-            for ho in host_organ_node:
-                await update_node(ho)
-                await create_relationship(prot_node, ho, "HOST_ON")
-
-    # get Rcsb Entity Source Organism
-            for so in source_organ_node:
-                await update_node(so)
-                await create_relationship(prot_node, so, "SOURCE_FROM")
-
-    # get Database
-            for db in db_node:
-                await update_node(db)
-                await create_relationship(prot_node, db, "REFER_TO")
-
-    # get Annotation
-            for anno in anno_node:
-                await update_node(anno)
-                await create_relationship(prot_node, anno, "HAS_ANNOTATION")
-
-    # get Drug and Drug Target
-            for index, drug in enumerate(drug_node):
-                await update_node(drug)
-                await create_relationship(prot_node, drug, "HAS_COFACTOR")
-                for drug_tar in drug_tar_list_list[index]:
-                    await update_node(drug_tar)
-                    await create_relationship(drug, drug_tar, "TARGET_TO")
-
-    # Create relationship between nodes have similar sequence
-            if len(prot_list) > 1:
-                for prev_prot in prot_list:
-                    await create_relationship(prev_prot, prot_node, "SIMILAR_SEQUENCE")
-                    await create_relationship(prot_node, prev_prot, "SIMILAR_SEQUENCE")
-            prot_list.append(prot_node)
 
 
 def save_kg_to_json(filename: str) -> None:

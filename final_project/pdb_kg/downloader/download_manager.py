@@ -5,10 +5,9 @@ Manages the downloading of datasets from PDB.
 
 import asyncio
 import time
-from typing import Any, AsyncIterator, Awaitable, Coroutine, Iterable
+from typing import Any, AsyncIterator, Awaitable, Coroutine, Iterable, Tuple
 
 from loguru import logger
-from pydantic import BaseModel
 
 from ..data_model import EntryNode, ProteinNode
 from .download_tasks import get_entry, get_entry_list, get_protein_entity
@@ -149,7 +148,7 @@ class DownloadManager:
     async def __download_protein_entities(
         self,
         entry: EntryNode,
-    ) -> AsyncIterator[ProteinNode]:
+    ) -> AsyncIterator[Tuple[ProteinNode, ...]]:
         """
         Downloads all the protein entity information from a particular entry.
 
@@ -170,9 +169,9 @@ class DownloadManager:
         async for entity_task in self.__await_concurrently(entity_tasks):
             yield entity_task.result()
 
-    async def download_all_nodes(self) -> AsyncIterator[BaseModel]:
+    async def download_entries(self) -> AsyncIterator[EntryNode]:
         """
-        Downloads every single node in the knowledge graph.
+        Downloads the data for entry nodes in the knowledge graph.
 
         Yields:
             Each node that it downloads.
@@ -187,5 +186,18 @@ class DownloadManager:
         async for entry in entries:
             yield entry
 
-            async for entity in self.__download_protein_entities(entry):
-                yield entity
+    async def download_entities(
+        self, entry: EntryNode
+    ) -> AsyncIterator[Tuple[ProteinNode, ...]]:
+        """
+        Downloads the data for entity nodes in the knowledge graph.
+
+        Args:
+            entry: The entry to download entities for.
+
+        Yields:
+            Each node that it downloads.
+
+        """
+        async for entity in self.__download_protein_entities(entry):
+            yield entity
