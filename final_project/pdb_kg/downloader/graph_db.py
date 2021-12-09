@@ -11,7 +11,7 @@ from neo4j import Result, Transaction
 from pydantic.error_wrappers import ValidationError
 
 from ..data_model import (
-    AnnotationNode,
+    AnnotationResponse,
     EntryNode,
     EntryResponse,
     NodeBase,
@@ -219,7 +219,7 @@ async def get_entry_2(entry_uuid: UUID) -> EntryResponse:
     return EntryResponse(**node_info[0], protein_entity_uuids=protein_info)
 
 
-async def get_annotation(annotation_id: UUID) -> AnnotationNode:
+async def get_annotation(annotation_id: UUID) -> AnnotationResponse:
     """
     Fetches an annotation by its UUID.
 
@@ -234,7 +234,7 @@ async def get_annotation(annotation_id: UUID) -> AnnotationNode:
         simple_get_transaction, NodeLabel.ANNOTATION, annotation_id
     )
     # Convert to an EntryNode structure.
-    return AnnotationNode(**node_info[0])
+    return AnnotationResponse(**node_info[0])
 
 
 async def get_protein(protein_id: UUID) -> ProteinNode:
@@ -344,7 +344,7 @@ async def get_path(start: UUID, end: UUID, max_length: int) -> List[NodeBase]:
         f'(a {{uuid: "{start}"}}), '
         f'(b {{uuid: "{end}"}}), '
         f"p=shortestPath((a)-[*]-(b)) "
-        f"WHERE length(p) > 1 AND length(p) < {max_length} "
+        f"WHERE length(p) < {max_length} "
         f"RETURN p"
     )
     node_info = await run_in_thread(run_read_query, query)

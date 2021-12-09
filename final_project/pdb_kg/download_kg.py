@@ -19,6 +19,8 @@ async def form_kg() -> None:
     download_manager = DownloadManager()
 
     async for entry in download_manager.download_entries():
+        await update_node(entry)
+
         # get each protein which belongs to a specific entry
         async for prot_entity in download_manager.download_entities(entry):
             prot_list = []

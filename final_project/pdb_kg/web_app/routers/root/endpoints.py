@@ -8,12 +8,21 @@ from uuid import UUID
 
 from fastapi import APIRouter
 from fastapi.responses import HTMLResponse
+from loguru import logger
 
 from ....data_model import (
     AnnotationResponse,
     EntryResponse,
     NodeBase,
     ProteinResponse,
+)
+from ....downloader.graph_db import (
+    get_annotated,
+    get_annotation,
+    get_entry_2,
+    get_neighbors,
+    get_path,
+    get_protein,
 )
 from ....neo4j_driver import get_driver
 from ...template_engine import template_environment
@@ -42,44 +51,40 @@ async def query(query_text: str) -> List[UUID]:
 
 
 @router.get("/get_protein/{protein_id}", response_model=ProteinResponse)
-async def get_protein(protein_id: UUID) -> ProteinResponse:
-    driver = get_driver()  # noqa: F841
-    # TODO: Finish this
-    return {"result": protein_id}
+async def get_protein_request(protein_id: UUID) -> ProteinResponse:
+    protein = await get_protein(protein_id)
+    return protein
 
 
 @router.get(
     "/get_annotation/{annotation_id}", response_model=AnnotationResponse
 )
-async def get_annotation(annotation_id: UUID) -> AnnotationResponse:
-    driver = get_driver()  # noqa: F841
-    # TODO: Finish this
-    return {"result": annotation_id}
+async def get_annotation_request(annotation_id: UUID) -> AnnotationResponse:
+    logger.debug("Retrieving annotation for id {}".format(annotation_id))
+    annotation = await get_annotation(annotation_id)
+    return annotation
 
 
 @router.get("/get_entry/{entry_id}", response_model=EntryResponse)
 async def get_entry(entry_id: UUID) -> EntryResponse:
-    driver = get_driver()  # noqa: F841
-    # TODO: Finish this
-    return {"result": entry_id}
+    entry = await get_entry_2(entry_id)
+    return entry
 
 
-@router.get("/get_neighbors/{neighbors_id}")
-async def get_neighbors(neighbors_id: UUID) -> List[NodeBase]:
-    driver = get_driver()  # noqa: F841
-    # TODO: Finish this
-    return {"result": neighbors_id}
+@router.get("/get_neighbors/{object_id}")
+async def get_neighbors_request(object_id: UUID) -> List[NodeBase]:
+    nodes = await get_neighbors(object_id)
+    return nodes
 
 
-@router.get("/get_annotated/{annotated_id}")
-async def get_annotated(annotated_id: UUID) -> List[UUID]:
-    driver = get_driver()  # noqa: F841
-    # TODO: Finish this
-    return {"result": annotated_id}
+@router.get("/get_annotated/{annotation_id}")
+async def get_annotated_request(annotation_id: UUID) -> List[UUID]:
+    nodes = await get_annotated(annotation_id)
+    return [n.uuid for n in nodes]
 
 
 @router.get("/get_path", response_model=List[NodeBase])
-async def get_path(
+async def get_path_request(
     start: UUID, end: UUID, max_length: int = 50
 ) -> List[NodeBase]:
     """
@@ -95,3 +100,5 @@ async def get_path(
         the path does not exist or is too long, it returns an empty list.
 
     """
+    path = await get_path(start, end, max_length)
+    return path
