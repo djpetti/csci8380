@@ -23,6 +23,7 @@ from ....downloader.graph_db import (
     get_neighbors,
     get_path,
     get_protein,
+    get_query
 )
 from ....neo4j_driver import get_driver
 from ...template_engine import template_environment
@@ -44,10 +45,9 @@ async def get_index() -> str:
 
 
 @router.get("/query/{query}")
-async def query(query_text: str) -> List[UUID]:
-    driver = get_driver()  # noqa: F841
-    # TODO: Finish this
-    return {"result": query_text}
+async def query(query_text) -> List[UUID]:
+    res = await get_query(query_text)
+    return res
 
 
 @router.get("/get_protein/{protein_id}", response_model=ProteinResponse)

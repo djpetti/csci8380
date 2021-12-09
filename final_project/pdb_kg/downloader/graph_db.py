@@ -2,6 +2,7 @@
 Contains low-level functions for interfacing with the graph database.
 """
 import asyncio
+import re
 from functools import singledispatch
 from typing import Any, List, Set, Tuple
 from uuid import UUID
@@ -190,6 +191,154 @@ async def update_node(entry: NodeBase) -> None:
             session.write_transaction(_update_entry_transaction, _entry)
 
     await run_in_thread(_update_entry_sync, entry)
+
+
+def is_pdb_entry_id(string: str) -> bool:
+    """
+    Determines if the given string is a valid pdb entry id as defined by 
+    https://proteopedia.org/wiki/index.php/PDB_code
+
+    Args:
+        string: The string to check if is a valid pdb entry id
+
+    Returns:
+        True if the string constitutes a single pdb entry id, false otherwise
+    """
+    return bool(re.match(r'^[1-9][a-zA-Z0-9]{3}$', string))
+
+
+async def get_pdb_entry_by_name(string: str) -> List[UUID]:
+    """
+    Fetches a list of pdb entries that match the given entry id.
+
+    Args: 
+        string: The entry id for the proteins
+
+    Returns:
+        A list of UUIDs corresponding to retrieved pdb entries
+    """
+    query = (f"MATCH (p:PROTEIN {{entry_id: '{string}'}}) RETURN p")
+    query_res = await run_in_thread(run_read_query, query)
+    query_res = [x.get("uuid") for x in query_res]
+    return query_res
+
+
+def is_go_id(string: str) -> bool:
+    """
+    Determines if the given string is a valid GO id based on whether it starts
+    with 'GO:'
+
+    Args:
+        string: The string to check if is a GO id
+
+    Returns:
+        True if the string constitutes a single GO id, false otherwise
+    """
+    return bool(re.match(r'^GO:', string))
+
+
+async def get_go_id_by_name(string: str) -> List[UUID]:
+    """
+    Fetches a list of pdb entries that match the given entry id.
+
+    Args: 
+        string: The entry id for the proteins
+
+    Returns:
+        A list of UUIDs corresponding to retrieved pdb entries
+    """
+    query = (f"MATCH (g:ANNOTATION {{id: '{string}'}}) RETURN g")
+    query_res = await run_in_thread(run_read_query, query)
+    query_res = [x.get("uuid") for x in query_res]
+    return query_res
+
+
+def is_fasta_sequence(string: str) -> bool:
+    """
+    Determines if a given string is a FASTA sequence by checking if the string
+    contains all uppercase letters. There is more than likely a more
+    comprehensive way to find this out, but most the methods I found involve a
+    much more complicated process. I can work on this more if that is important.
+
+    Args:
+        string: String to determine if is a fasta sequence
+
+    Returns:
+        True if the string is considered a valid sequence, false otherwise
+    """
+    return string.isalpha() and string.isupper()
+
+
+async def get_proteins_by_seq(seq: str) -> List[UUID]:
+    """
+    Retrieves a list of proteins which contain a subsequence or match the
+    sequence given.
+
+    Args:
+        seq: The subseq/seq to fuzzy search for
+
+    Returns:
+        A list of UUIDs for proteins which match the seq
+    """
+    query = f"MATCH (g:PROTEIN) WHERE g.seq CONTAINS '{seq}' RETURN g"
+    query_res = await run_in_thread(run_read_query, query)
+    query_res = [x.get("uuid") for x in query_res]
+    return query_res
+
+
+async def get_fuzzy_entries(string: str) -> List[UUID]:
+    """
+    Fallback protocol for the querying function. Runs a fuzzy search to find
+    all the elements where either the protein or annotation contains the given
+    string as part of their id.
+
+    Args:
+        string: The string which an id may contain 
+
+    Returns:
+        All proteins and annotations which contain this string in their id
+    """
+    query = (
+            f"MATCH(g) WHERE g.entry_id CONTAINS '{string}' OR g.id "
+            f"CONTAINS '{string}' RETURN g"
+            )
+    query_res = await run_in_thread(run_read_query, query)
+    query_res = [x.get("uuid") for x in query_res]
+    return query_res
+
+
+async def get_query(query_string: str) -> List[UUID]:
+    """
+    Gets the results for a search query given a query_string. This can fall
+    under a few options, with them being prioritized in the order they are
+    listed:
+    1. If the query is a valid PDB entry ID, e.g. “4HHB”, it should return all
+    proteins associated with that entry.  
+    2. If the query is a valid GO ID, e.g.  “GO:0005623”, it should return all
+    proteins with that annotation.  
+    3. If the query is a valid FASTA sequence, it should fuzzy-match to
+    proteins with similar sequences.  
+    4. For anything else, it should fuzzy-match to the protein names or the GO
+    node descriptions, and respond with any related proteins. 
+
+    Args:
+        query_string: The query string to be parsed and find the results for 
+
+    Returns:
+        Results corresponding to what the query string is most likely referring
+        to
+    """
+    logger.debug(query_string)
+    res = []
+    if is_pdb_entry_id(query_string):
+        res = await get_pdb_entry_by_name(query_string)
+    elif is_go_id(query_string):
+        res = await get_go_id_by_name(query_string)
+    elif is_fasta_sequence(query_string):
+        res = await get_proteins_by_seq(query_string)
+    else: 
+        res = await get_fuzzy_entries(query_string)
+    return res
 
 
 async def get_entry_2(entry_uuid: UUID) -> EntryResponse:
