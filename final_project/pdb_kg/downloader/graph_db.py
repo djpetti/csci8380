@@ -10,15 +10,16 @@ from loguru import logger
 from neo4j import Result, Transaction
 from pydantic.error_wrappers import ValidationError
 
-from ..data_model import (
+from data_model import (
     AnnotationResponse,
     EntryNode,
     EntryResponse,
     NodeBase,
     NodeLabel,
     ProteinNode,
+    ProteinResponse,
 )
-from ..neo4j_driver import get_driver
+from neo4j_driver import get_driver
 
 
 @singledispatch
@@ -251,8 +252,32 @@ async def get_protein(protein_id: UUID) -> ProteinNode:
     node_info = await run_in_thread(
         simple_get_transaction, NodeLabel.PROTEIN, protein_id
     )
-    logger.debug(node_info)
-    return ProteinNode(**node_info[0])
+
+    entry_query = (
+            f"MATCH (e:ENTRY)-[:HAS_PROTEIN]-"
+            f"(p:PROTEIN {{uuid: '{protein_id}'}}) RETURN e"
+    )
+    entry_info = await run_in_thread(run_read_query, entry_query)
+    entry_info = entry_info[0].get('uuid')
+
+    annotation_query = (
+            f"MATCH (p:PROTEIN {{uuid: '{protein_id}'}})-[:HAS_ANNOTATION]-"
+            f"(a:ANNOTATION) RETURN a"
+    )
+    annotation_info = await run_in_thread(run_read_query, annotation_query)
+    annotation_info = [x.get('uuid') for x in annotation_info]
+
+    cofactor_query = (
+            f"MATCH (p:PROTEIN {{uuid: '{protein_id}'}})-[:HAS_COFACTOR]-"
+            f"(c) RETURN c"
+    )
+    cofactor_info = await run_in_thread(run_read_query, cofactor_query)
+    cofactor_info = [x.get('uuid') for x in cofactor_info]
+
+    return ProteinResponse(**node_info[0],
+                           entry_uuid=entry_info,
+                           annotation_uuids=set(annotation_info),
+                           cofactor_uuids=set(cofactor_info))
 
 
 def convert_node(node_info):

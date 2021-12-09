@@ -2,3 +2,4 @@
 .python-version
 pdb_kg/downloader/__pycache__/
 pdb_kg/__pycache__/
+*.swp
