@@ -11,6 +11,7 @@ from typing import (
     Awaitable,
     Coroutine,
     Iterable,
+    Optional,
     Set,
     Tuple,
 )
@@ -133,15 +134,27 @@ class DownloadManager:
                 yield awaitable
 
     @staticmethod
-    async def __download_entry_ids() -> AsyncIterator[str]:
+    async def __download_entry_ids(
+        start_at: Optional[str] = None,
+    ) -> AsyncIterator[str]:
         """
         Downloads all the entry IDs from PDB.
+
+        Args:
+            start_at: If specified, start at a particular entry instead of
+                the beginning.
 
         Yields:
             The downloaded IDs.
 
         """
         entry_ids = await get_entry_list()
+        if start_at is not None:
+            # Find where to start.
+            start_index = entry_ids.index(start_at)
+            logger.info("Starting download from entry {}.", start_index + 1)
+            entry_ids = entry_ids[start_index:]
+
         for entry_id in entry_ids:
             yield entry_id
 
@@ -220,16 +233,21 @@ class DownloadManager:
         async for cofactor_task in self.__await_concurrently(cofactor_tasks):
             yield cofactor_task.result()
 
-    async def download_entries(self) -> AsyncIterator[EntryNode]:
+    async def download_entries(
+        self, start_at: Optional[str] = None
+    ) -> AsyncIterator[EntryNode]:
         """
         Downloads the data for entry nodes in the knowledge graph.
+
+        Args:
+            start_at: Start at this entry ID instead of from the beginning.
 
         Yields:
             Each node that it downloads.
 
         """
         # First, get the IDs of the entries to download.
-        entry_ids = self.__download_entry_ids()
+        entry_ids = self.__download_entry_ids(start_at=start_at)
         # Now, get the actual entry data.
         entries = self.__download_entries(entry_ids)
 

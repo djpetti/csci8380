@@ -1,4 +1,8 @@
+import argparse
 import asyncio
+from typing import Optional
+
+from loguru import logger
 
 from .downloader.download_manager import DownloadManager
 from .downloader.graph_db import (
@@ -9,11 +13,13 @@ from .downloader.graph_db import (
 )
 
 
-async def form_kg() -> None:
+async def form_kg(start_at_entry: Optional[str] = None) -> None:
     """
     Create Neo4J database by adding nodes and relationships.
 
-    Returns: None
+    Args:
+        start_at_entry: Start at this particular entry instead of the
+            beginning.
 
     """
     download_manager = DownloadManager()
@@ -24,7 +30,9 @@ async def form_kg() -> None:
     added_annotations = set()
     added_drugs = set()
 
-    async for entry in download_manager.download_entries():
+    async for entry in download_manager.download_entries(
+        start_at=start_at_entry
+    ):
         await update_node(entry)
 
         # get each protein which belongs to a specific entry
@@ -82,9 +90,40 @@ async def form_kg() -> None:
                 added_drugs.update(prot_node.cofactors)
 
 
+def _make_parser() -> argparse.ArgumentParser:
+    """
+    Returns:
+        The parser to use for parsing CLI arguments.
+
+    """
+    parser = argparse.ArgumentParser(
+        description="Downloads PDB data and stores them in` Neo4J."
+    )
+
+    parser.add_argument(
+        "-c",
+        "--clear",
+        action="store_true",
+        help="Clear the DB before downloading new stuff.",
+    )
+    parser.add_argument(
+        "-s",
+        "--start-from",
+        default=None,
+        help="Start from this entry ID instead of the beginning.",
+    )
+
+    return parser
+
+
 def main():
-    delete_all()
-    asyncio.run(form_kg())
+    cli_args = _make_parser().parse_args()
+
+    if cli_args.clear:
+        logger.info("Clearing the database...")
+        delete_all()
+
+    asyncio.run(form_kg(start_at_entry=cli_args.start_from))
     save_kg_to_json("all")
 
 
