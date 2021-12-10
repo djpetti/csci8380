@@ -4,7 +4,7 @@ Contains the data model used by this application.
 
 
 import enum
-from typing import Optional, Set, Tuple
+from typing import Any, Optional, Set, Tuple
 from uuid import UUID, uuid4
 
 from pydantic import BaseModel, Field
@@ -36,25 +36,65 @@ class NodeLabel(enum.Enum):
     """
     Indicates that a node represents an ontology annotation.
     """
-    DRUGBANK_TARGET = enum.auto()
+    DRUGBANK_TARGET = "drugbank_target"
     """
     Indicates that a node represents a drug's target.
     """
-    DATABASE = enum.auto()
+    DATABASE = "database"
     """
     Indicates that a node represents a protein database.
     """
-    HOST_ORGANISM = enum.auto()
+    HOST_ORGANISM = "host_organism"
     """
     Indicates that a node represents a host organism of a protein.
     """
-    SOURCE_ORGANISM = enum.auto()
+    SOURCE_ORGANISM = "source_organism"
     """
     Indicates that a node represents a source organism of a protein.
     """
 
 
-class NodeBase(BaseModel):
+def _snake_to_camel_case(snake: str) -> str:
+    """
+    Converts a field name in snake case, i.e. `my_field`, to one in camel
+    case, i.e. `myField`.
+
+    Args:
+        snake: The field name in snake case.
+
+    Returns:
+        The field name in camel case.
+
+    """
+    words = snake.split("_")
+    first_word = words[0]
+    other_words = "".join((word.capitalize() for word in words[1:]))
+    return f"{first_word}{other_words}"
+
+
+class _ApiModelConfig:
+    """
+    Default config class for ApiModels.
+    """
+
+    alias_generator = _snake_to_camel_case
+    allow_population_by_field_name = True
+    allow_mutation = False
+
+
+class ApiModel(BaseModel):
+    """
+    Implements the default configuration for models that are used as part of
+    the API.
+    """
+
+    Config = _ApiModelConfig
+
+    def json(self, *args: Any, by_alias: bool = True, **kwargs: Any) -> str:
+        return super().json(*args, by_alias=by_alias, **kwargs)
+
+
+class NodeBase(ApiModel):
     """
     Contains attributes shared by all models representing Neo4J nodes.
 
@@ -65,7 +105,7 @@ class NodeBase(BaseModel):
     """
 
     uuid: UUID = Field(default_factory=uuid4)
-    label: NodeLabel
+    label: NodeLabel = NodeLabel.NONE
 
 
 class Publication(BaseModel):
@@ -173,12 +213,12 @@ class ProteinResponse(ProteinNode):
 
     """
 
-    entry_uuid: UUID
+    entry_uuid: Optional[UUID]
     annotation_uuids: Set[UUID]
     cofactor_uuids: Set[UUID]
 
 
-class RcsbEntityHostOrganism(NodeBase):
+class HostOrganism(NodeBase):
     """
     A node representing a host organism of a protein.
 
@@ -199,7 +239,7 @@ class RcsbEntityHostOrganism(NodeBase):
     provenance_source: str
 
 
-class RcsbEntitySourceOrganism(NodeBase):
+class SourceOrganism(NodeBase):
     """
     A node representing a source organism of a protein.
 
@@ -248,7 +288,7 @@ class DrugbankTarget(NodeBase):
 
     Attributes:
         interaction_type: Represents interaction types.
-        name: Reprsnts the target's name.
+        name: Represents the target's name.
         ordinal: Distinguish different targets on the same drug.
     """
 

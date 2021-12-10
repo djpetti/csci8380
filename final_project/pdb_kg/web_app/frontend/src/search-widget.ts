@@ -1,11 +1,12 @@
-import { css, html, LitElement, PropertyValues } from "lit";
+import { css, html, LitElement } from "lit";
 import { property, query } from "lit/decorators.js";
 import "@material/mwc-textfield";
 import "@material/mwc-button";
 import "@material/mwc-linear-progress";
 import "./search-results";
 import { SearchResults } from "./search-results";
-import { PROTEINS } from "./example_data";
+import { ProteinResponse } from "typescript-axios";
+import { getProtein, getQuery } from "./api-client";
 
 /**
  * Main element that handles searching and the display of results.
@@ -80,6 +81,41 @@ export class SearchWidget extends LitElement {
   }
 
   /**
+   * Performs the search based on the user's input.
+   * @param {string} query The query string entered by the user.
+   * @return {ProteinResponse[]} The details for all the query results.
+   * @private
+   */
+  private async makeSearchRequest(query: string): Promise<ProteinResponse[]> {
+    // Perform the query.
+    const queryResults = await getQuery(query);
+
+    // Retrieve details for each result.
+    const detailsPromises = queryResults.map((p) => getProtein(p));
+    return Promise.all(detailsPromises);
+  }
+
+  /**
+   * Callback performs the search and updates the data model accordingly.
+   * @private
+   */
+  private search() {
+    this._isSearching = true;
+
+    // Perform the search.
+    this.makeSearchRequest(this.queryText).then((response) => {
+      this._isSearching = false;
+      // Update the displayed results.
+      // We have to copy the whole object instead of merely mutating it in order
+      // to trigger the element update.
+      this._results.searchResults = [
+        { proteins: response },
+        ...this._results.searchResults,
+      ];
+    });
+  }
+
+  /**
    * @inheritDoc
    */
   protected render() {
@@ -115,6 +151,7 @@ export class SearchWidget extends LitElement {
             icon="search"
             ?disabled="${!this.isSearchValid()}"
             class="${searchDisplayClass}"
+            @click="${(_: Event) => this.search()}"
           >
           </mwc-button>
 
@@ -133,12 +170,5 @@ export class SearchWidget extends LitElement {
         </div>
       </div>
     `;
-  }
-
-  /**
-   * @inheritDoc
-   */
-  protected firstUpdated(_: PropertyValues) {
-    this._results.searchResults = [{ proteins: PROTEINS }];
   }
 }

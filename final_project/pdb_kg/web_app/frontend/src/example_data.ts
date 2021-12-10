@@ -52,6 +52,7 @@ export const ENTRIES: EntryResponse[] = [
         year: 2021,
       },
     ],
+    proteinEntityUuids: new Set(["asdf1", "asdf2"]),
   },
 ];
 

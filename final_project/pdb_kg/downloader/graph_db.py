@@ -11,7 +11,7 @@ from loguru import logger
 from neo4j import Result, Transaction
 from pydantic.error_wrappers import ValidationError
 
-from data_model import (
+from ..data_model import (
     AnnotationResponse,
     EntryNode,
     EntryResponse,
@@ -20,7 +20,7 @@ from data_model import (
     ProteinNode,
     ProteinResponse,
 )
-from neo4j_driver import get_driver
+from ..neo4j_driver import get_driver
 
 
 @singledispatch
@@ -195,7 +195,7 @@ async def update_node(entry: NodeBase) -> None:
 
 def is_pdb_entry_id(string: str) -> bool:
     """
-    Determines if the given string is a valid pdb entry id as defined by 
+    Determines if the given string is a valid pdb entry id as defined by
     https://proteopedia.org/wiki/index.php/PDB_code
 
     Args:
@@ -204,20 +204,20 @@ def is_pdb_entry_id(string: str) -> bool:
     Returns:
         True if the string constitutes a single pdb entry id, false otherwise
     """
-    return bool(re.match(r'^[1-9][a-zA-Z0-9]{3}$', string))
+    return bool(re.match(r"^[1-9][a-zA-Z0-9]{3}$", string))
 
 
 async def get_pdb_entry_by_name(string: str) -> List[UUID]:
     """
     Fetches a list of pdb entries that match the given entry id.
 
-    Args: 
+    Args:
         string: The entry id for the proteins
 
     Returns:
         A list of UUIDs corresponding to retrieved pdb entries
     """
-    query = (f"MATCH (p:PROTEIN {{entry_id: '{string}'}}) RETURN p")
+    query = f"MATCH (p:PROTEIN {{entry_id: '{string}'}}) RETURN p"
     query_res = await run_in_thread(run_read_query, query)
     query_res = [x.get("uuid") for x in query_res]
     return query_res
@@ -234,23 +234,23 @@ def is_go_id(string: str) -> bool:
     Returns:
         True if the string constitutes a single GO id, false otherwise
     """
-    return bool(re.match(r'^GO:', string))
+    return bool(re.match(r"^GO:", string))
 
 
 async def get_go_id_by_name(string: str) -> List[UUID]:
     """
     Fetches a list of pdb entries that match the given entry id.
 
-    Args: 
+    Args:
         string: The entry id for the proteins
 
     Returns:
         A list of UUIDs corresponding to retrieved pdb entries
     """
     query = (
-            f"MATCH (p:PROTEIN)-[:HAS_ANNOTATION]-"
-            f"(g:ANNOTATION {{id: '{string}'}}) RETURN p"
-            )
+        f"MATCH (p:PROTEIN)-[:HAS_ANNOTATION]-"
+        f"(g:ANNOTATION {{id: '{string}'}}) RETURN p"
+    )
     query_res = await run_in_thread(run_read_query, query)
     query_res = [x.get("uuid") for x in query_res]
     return query_res
@@ -261,7 +261,8 @@ def is_fasta_sequence(string: str) -> bool:
     Determines if a given string is a FASTA sequence by checking if the string
     contains all uppercase letters. There is more than likely a more
     comprehensive way to find this out, but most the methods I found involve a
-    much more complicated process. I can work on this more if that is important.
+    much more complicated process. I can work on this more if that is
+    important.
 
     Args:
         string: String to determine if is a fasta sequence
@@ -296,15 +297,15 @@ async def get_fuzzy_entries(string: str) -> List[UUID]:
     string as part of their id.
 
     Args:
-        string: The string which an id may contain 
+        string: The string which an id may contain
 
     Returns:
         All proteins and annotations which contain this string in their id
     """
     query = (
-            f"MATCH(g) WHERE g.entry_id CONTAINS '{string}' OR g.id "
-            f"CONTAINS '{string}' RETURN g"
-            )
+        f"MATCH(g) WHERE g.entry_id CONTAINS '{string}' OR g.id "
+        f"CONTAINS '{string}' RETURN g"
+    )
     query_res = await run_in_thread(run_read_query, query)
     query_res = [x.get("uuid") for x in query_res]
     return query_res
@@ -316,16 +317,16 @@ async def get_query(query_string: str) -> List[UUID]:
     under a few options, with them being prioritized in the order they are
     listed:
     1. If the query is a valid PDB entry ID, e.g. “4HHB”, it should return all
-    proteins associated with that entry.  
+    proteins associated with that entry.
     2. If the query is a valid GO ID, e.g.  “GO:0005623”, it should return all
-    proteins with that annotation.  
+    proteins with that annotation.
     3. If the query is a valid FASTA sequence, it should fuzzy-match to
-    proteins with similar sequences.  
+    proteins with similar sequences.
     4. For anything else, it should fuzzy-match to the protein names or the GO
-    node descriptions, and respond with any related proteins. 
+    node descriptions, and respond with any related proteins.
 
     Args:
-        query_string: The query string to be parsed and find the results for 
+        query_string: The query string to be parsed and find the results for
 
     Returns:
         Results corresponding to what the query string is most likely referring
@@ -339,7 +340,7 @@ async def get_query(query_string: str) -> List[UUID]:
         res = await get_go_id_by_name(query_string)
     elif is_fasta_sequence(query_string):
         res = await get_proteins_by_seq(query_string)
-    else: 
+    else:
         res = await get_fuzzy_entries(query_string)
     return res
 
@@ -390,12 +391,12 @@ async def get_annotation(annotation_id: UUID) -> AnnotationResponse:
     return AnnotationResponse(**node_info[0])
 
 
-async def get_protein(protein_id: UUID) -> ProteinNode:
+async def get_protein(protein_id: UUID) -> ProteinResponse:
     """
-    Fetches an protein by its UUID.
+    Fetches a protein by its UUID.
 
     Args:
-        protein_id: The UUID of the annotation.
+        protein_id: The UUID of the protein.
 
     Returns:
         An AnnotationNode with the desired UUID if found.
@@ -406,30 +407,39 @@ async def get_protein(protein_id: UUID) -> ProteinNode:
     )
 
     entry_query = (
-            f"MATCH (e:ENTRY)-[:HAS_PROTEIN]-"
-            f"(p:PROTEIN {{uuid: '{protein_id}'}}) RETURN e"
+        f"MATCH (e:ENTRY)-[:HAS_PROTEIN]-"
+        f"(p:PROTEIN {{uuid: '{protein_id}'}}) RETURN e"
     )
     entry_info = await run_in_thread(run_read_query, entry_query)
-    entry_info = entry_info[0].get('uuid')
+    if len(entry_info) < 1:
+        # No entry, often resulting from an incomplete database.
+        logger.warning(
+            "No entry data for protein {}. Is the DB complete?", protein_id
+        )
+        entry_uuid = None
+    else:
+        entry_uuid = entry_info[0].get("uuid")
 
     annotation_query = (
-            f"MATCH (p:PROTEIN {{uuid: '{protein_id}'}})-[:HAS_ANNOTATION]-"
-            f"(a:ANNOTATION) RETURN a"
+        f"MATCH (p:PROTEIN {{uuid: '{protein_id}'}})-[:HAS_ANNOTATION]-"
+        f"(a:ANNOTATION) RETURN a"
     )
     annotation_info = await run_in_thread(run_read_query, annotation_query)
-    annotation_info = [x.get('uuid') for x in annotation_info]
+    annotation_info = [x.get("uuid") for x in annotation_info]
 
     cofactor_query = (
-            f"MATCH (p:PROTEIN {{uuid: '{protein_id}'}})-[:HAS_COFACTOR]-"
-            f"(c) RETURN c"
+        f"MATCH (p:PROTEIN {{uuid: '{protein_id}'}})-[:HAS_COFACTOR]-"
+        f"(c) RETURN c"
     )
     cofactor_info = await run_in_thread(run_read_query, cofactor_query)
-    cofactor_info = [x.get('uuid') for x in cofactor_info]
+    cofactor_info = [x.get("uuid") for x in cofactor_info]
 
-    return ProteinResponse(**node_info[0],
-                           entry_uuid=entry_info,
-                           annotation_uuids=set(annotation_info),
-                           cofactor_uuids=set(cofactor_info))
+    return ProteinResponse(
+        **node_info[0],
+        entry_uuid=entry_uuid,
+        annotation_uuids=set(annotation_info),
+        cofactor_uuids=set(cofactor_info),
+    )
 
 
 def convert_node(node_info):

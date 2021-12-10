@@ -10,7 +10,7 @@ import {
 } from "typescript-axios";
 
 const api = new DefaultApi(
-  new Configuration({ basePath: "http://localhost:8081/" })
+  new Configuration({ basePath: "http://localhost:8000" })
 );
 
 /**
@@ -43,6 +43,22 @@ function convertNode<NodeType extends NodeBase>(node: NodeType): NodeType {
 }
 
 /**
+ * Performs a natural-language query.
+ * @param {string} queryText The text of the query.
+ * @return {string[]} The UUIDs of the proteins found by the query.
+ */
+export async function getQuery(queryText: string): Promise<string[]> {
+  const response = await api
+    .queryQueryQueryTextGet(queryText)
+    .catch(function (error) {
+      console.error(error.toJSON());
+      throw error;
+    });
+
+  return response.data;
+}
+
+/**
  * Gets the path between two nodes in the graph.
  * @param {string} startUuid The UUID of the starting node.
  * @param {string} endUuid The UUID of the ending node.
@@ -56,7 +72,7 @@ export async function getPath(
   maxLength?: number
 ): Promise<NodeBase[]> {
   const response = await api
-    .getPathGetPathGet(startUuid, endUuid, maxLength)
+    .getPathRequestGetPathGet(startUuid, endUuid, maxLength)
     .catch(function (error) {
       console.error(error.toJSON());
       throw error;
@@ -78,7 +94,7 @@ export async function getPath(
  */
 export async function getNeighbors(nodeId: string): Promise<NodeBase[]> {
   const response = await api
-    .getNeighborsGetNeighborsNeighborsIdGet(nodeId)
+    .getNeighborsRequestGetNeighborsObjectIdGet(nodeId)
     .catch(function (error) {
       console.error(error.toJSON());
       throw error;
@@ -100,7 +116,7 @@ export async function getNeighbors(nodeId: string): Promise<NodeBase[]> {
  */
 export async function getProtein(proteinId: string): Promise<ProteinResponse> {
   const response = await api
-    .getProteinGetProteinProteinIdGet(proteinId)
+    .getProteinRequestGetProteinProteinIdGet(proteinId)
     .catch(function (error) {
       console.error(error.toJSON());
       throw error;
@@ -118,7 +134,7 @@ export async function getAnnotation(
   annotationId: string
 ): Promise<AnnotationResponse> {
   const response = await api
-    .getAnnotationGetAnnotationAnnotationIdGet(annotationId)
+    .getAnnotationRequestGetAnnotationAnnotationIdGet(annotationId)
     .catch(function (error) {
       console.error(error.toJSON());
       throw error;

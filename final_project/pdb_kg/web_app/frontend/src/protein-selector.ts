@@ -4,7 +4,6 @@ import "@material/mwc-list";
 import "@material/mwc-list/mwc-list-item";
 import { ProteinResponse } from "typescript-axios";
 import "@material/mwc-icon-button";
-import { PROTEINS } from "./example_data";
 import { SelectedEvent } from "@material/mwc-list";
 
 /**
@@ -43,7 +42,25 @@ export class ProteinSelector extends LitElement {
    * Info for the proteins that will be displayed by this element.
    */
   @property({ attribute: false })
-  proteins: ProteinResponse[] = PROTEINS;
+  proteins: ProteinResponse[] = [];
+
+  /**
+   * Keeps track of the indices of selected entries.
+   */
+  private _selectedIndices: Set<number> = new Set<number>();
+
+  /**
+   * Gets the info for the proteins that are currently selected.
+   * @return {ProteinResponse[]} The currently-selected proteins.
+   */
+  get selectedProteins(): ProteinResponse[] {
+    const selectedProteins = [];
+    for (const index of this._selectedIndices) {
+      selectedProteins.push(this.proteins[index]);
+    }
+
+    return selectedProteins;
+  }
 
   /**
    * Renders the list item for a single protein.
@@ -54,7 +71,7 @@ export class ProteinSelector extends LitElement {
   private static renderProtein(protein: ProteinResponse): TemplateResult {
     return html`
       <mwc-list-item twoline>
-        <span>${protein.id}</span>
+        <span>${protein.entryId}/${protein.id}</span>
         <span slot="secondary">${protein.name}</span>
       </mwc-list-item>
     `;
@@ -66,17 +83,14 @@ export class ProteinSelector extends LitElement {
    * @private
    */
   private handleSelection(event: SelectedEvent) {
-    // Get the actual proteins that were selected.
-    const selectedProteins = [];
-    for (const index of event.detail.index as Set<number>) {
-      selectedProteins.push(this.proteins[index]);
-    }
+    // Update the selected indices.
+    this._selectedIndices = event.detail.index as Set<number>;
 
     // Dispatch a new event with this information.
     this.dispatchEvent(
       new CustomEvent<ProteinResponse[]>(
         ProteinSelector.SELECTION_CHANGED_EVENT_NAME,
-        { bubbles: true, composed: true, detail: selectedProteins }
+        { bubbles: true, composed: true, detail: this.selectedProteins }
       )
     );
   }

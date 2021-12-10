@@ -9,6 +9,7 @@ import { ANNOTATIONS, ENTRIES, PROTEINS } from "./example_data";
 import { ProteinSelector, SelectionChangedEvent } from "./protein-selector";
 import { ProteinResponse } from "typescript-axios";
 import { ProteinDetails } from "./protein-details";
+import { stringify } from "ts-jest/dist/utils/json";
 
 /**
  * Represents the result of a search.
@@ -73,12 +74,9 @@ export class SearchResults extends LitElement {
   private _searchResultToElement = new Map<SearchData, ProteinSelector>();
 
   /**
-   * Maps selected proteins to corresponding details cards.
+   * Maps selected protein UUIDs to corresponding details cards.
    */
-  private _selectedProteinsToElement = new Map<
-    ProteinResponse,
-    ProteinDetails
-  >();
+  private _selectedProteinsToElement = new Map<string, ProteinDetails>();
 
   /**
    * @inheritDoc
@@ -109,6 +107,28 @@ export class SearchResults extends LitElement {
   }
 
   /**
+   * Gets all the proteins that are currently selected in all search results.
+   * @return {ProteinResponse[]} The set of all unique selected proteins.
+   * @private
+   */
+  private getAllSelectedProteins(): ProteinResponse[] {
+    const selectedProteins: ProteinResponse[] = [];
+    // Keep track of UUIDs so we don't add duplicates.
+    const seenUuids = new Set<string>();
+
+    for (const resultCard of this._selectionContainer.querySelectorAll(
+      "protein-selector"
+    )) {
+      const uniqueProteins = (
+        resultCard as ProteinSelector
+      ).selectedProteins.filter((p) => !seenUuids.has(p.uuid as string));
+      selectedProteins.push(...uniqueProteins);
+    }
+
+    return selectedProteins;
+  }
+
+  /**
    * Updates the selected proteins in the UI based on the user's selections.
    * @param {ProteinResponse[]} selectedProteins The proteins that the user selected.
    * @private
@@ -116,7 +136,7 @@ export class SearchResults extends LitElement {
   private updateSelectedProteins(selectedProteins: ProteinResponse[]) {
     // Add protein details.
     for (const protein of selectedProteins) {
-      if (this._selectedProteinsToElement.has(protein)) {
+      if (this._selectedProteinsToElement.has(protein.uuid as string)) {
         // Protein was selected before. We should not need to change anything.
         continue;
       }
@@ -127,12 +147,16 @@ export class SearchResults extends LitElement {
       // Add it to the DOM.
       this._detailsContainer.appendChild(detailsCard);
 
-      this._selectedProteinsToElement.set(protein, detailsCard);
+      this._selectedProteinsToElement.set(protein.uuid as string, detailsCard);
     }
 
+    // Prepare a set of selected protein UUIDs.
+    const selectedUuids = new Set<string>(
+      selectedProteins.map((p) => p.uuid as string)
+    );
     // Remove protein details.
-    for (const [protein, card] of this._selectedProteinsToElement) {
-      if (selectedProteins.includes(protein)) {
+    for (const [proteinUuid, card] of this._selectedProteinsToElement) {
+      if (selectedUuids.has(proteinUuid)) {
         // Protein was not selected before. We should not need to change anything.
         continue;
       }
@@ -140,11 +164,12 @@ export class SearchResults extends LitElement {
       // Otherwise, remove the details card.
       this._detailsContainer.removeChild(card);
 
-      this._selectedProteinsToElement.delete(protein);
+      this._selectedProteinsToElement.delete(proteinUuid);
     }
   }
 
   /**
+   * Updates the search result cards shown on the left.
    * @private
    */
   private updateSearchResults() {
@@ -172,8 +197,7 @@ export class SearchResults extends LitElement {
       // Add a listener for selection changes.
       selector.addEventListener(
         ProteinSelector.SELECTION_CHANGED_EVENT_NAME,
-        (event: Event) =>
-          this.updateSelectedProteins((event as SelectionChangedEvent).detail)
+        (_: Event) => this.updateSelectedProteins(this.getAllSelectedProteins())
       );
     }
 
