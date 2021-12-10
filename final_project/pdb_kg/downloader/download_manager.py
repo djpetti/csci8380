@@ -5,12 +5,28 @@ Manages the downloading of datasets from PDB.
 
 import asyncio
 import time
-from typing import Any, AsyncIterator, Awaitable, Coroutine, Iterable, Tuple
+from typing import (
+    Any,
+    AsyncIterator,
+    Awaitable,
+    Coroutine,
+    Iterable,
+    Set,
+    Tuple,
+)
 
+import aiohttp
 from loguru import logger
 
 from ..data_model import EntryNode, ProteinNode
-from .download_tasks import get_entry, get_entry_list, get_protein_entity
+from .download_tasks import (
+    DrugInfoTuple,
+    ProteinInfoTuple,
+    get_drug_entity,
+    get_entry,
+    get_entry_list,
+    get_protein_entity,
+)
 
 
 class DownloadManager:
@@ -73,7 +89,6 @@ class DownloadManager:
                     )
                     await asyncio.sleep(delay_time)
                 self.__last_download_time = time.time()
-                logger.debug("Download time: {}", self.__last_download_time)
 
                 return await download_coro
 
@@ -97,10 +112,24 @@ class DownloadManager:
         pending = awaitables
         while len(pending) != 0:
             done, pending = await asyncio.wait(
-                pending, return_when=asyncio.FIRST_COMPLETED
+                pending, return_when=asyncio.FIRST_EXCEPTION
             )
 
             for awaitable in done:
+                # Check for failures.
+                error = awaitable.exception()
+                if error is not None:
+                    if (
+                        isinstance(error, aiohttp.ClientResponseError)
+                        and error.status == 404
+                    ):
+                        # This probably means that PDB pointed us to an
+                        # entity that was invalid.
+                        logger.warning(
+                            "Download failed, skipping: {}", str(error)
+                        )
+                        continue
+
                 yield awaitable
 
     @staticmethod
@@ -169,6 +198,28 @@ class DownloadManager:
         async for entity_task in self.__await_concurrently(entity_tasks):
             yield entity_task.result()
 
+    async def __download_cofactors(
+        self,
+        cofactor_ids: Iterable[str],
+    ) -> AsyncIterator[DrugInfoTuple]:
+        """
+        Downloads all the protein entity information from a particular entry.
+
+        Args:
+            cofactor_ids: The IDs of the cofactors to download information for.
+
+        Yields:
+            The node info for each drug.
+
+        """
+        cofactor_tasks = [
+            self.__do_download(get_drug_entity(cofactor))
+            for cofactor in cofactor_ids
+        ]
+
+        async for cofactor_task in self.__await_concurrently(cofactor_tasks):
+            yield cofactor_task.result()
+
     async def download_entries(self) -> AsyncIterator[EntryNode]:
         """
         Downloads the data for entry nodes in the knowledge graph.
@@ -188,7 +239,7 @@ class DownloadManager:
 
     async def download_entities(
         self, entry: EntryNode
-    ) -> AsyncIterator[Tuple[ProteinNode, ...]]:
+    ) -> AsyncIterator[ProteinInfoTuple]:
         """
         Downloads the data for entity nodes in the knowledge graph.
 
@@ -201,3 +252,26 @@ class DownloadManager:
         """
         async for entity in self.__download_protein_entities(entry):
             yield entity
+
+    async def download_cofactors(
+        self,
+        protein: ProteinNode,
+        exclude: Set[str] = frozenset(),
+    ) -> AsyncIterator[DrugInfoTuple]:
+        """
+        Downloads info for the cofactors associated with a protein.
+
+        Args:
+            protein: The protein to download cofactors for.
+            exclude: Set of cofactor resource IDs to skip downloading. These
+                might be ones that we have downloaded already, for instance.
+
+        Yields:
+            Each node that it downloads.
+
+        """
+        # Remove any excluded cofactors.
+        cofactors = protein.cofactors - exclude
+
+        async for nodes in self.__download_cofactors(cofactors):
+            yield nodes

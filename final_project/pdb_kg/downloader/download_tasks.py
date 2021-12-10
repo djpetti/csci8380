@@ -1,12 +1,21 @@
 """
 Encapsulates functionality for downloading specific data from PDB.
 """
-
-
-from typing import List
+import asyncio.exceptions
+import logging
+from typing import Any, List, Tuple
 from urllib.parse import urljoin
 
+import aiohttp
 from loguru import logger
+from tenacity import (
+    after_log,
+    retry,
+    retry_if_exception,
+    retry_if_exception_type,
+    stop_after_attempt,
+    wait_exponential,
+)
 
 from ..data_model import (
     AnnotationNode,
@@ -14,10 +23,10 @@ from ..data_model import (
     DrugbankTarget,
     DrugNode,
     EntryNode,
+    HostOrganism,
     ProteinNode,
     Publication,
-    RcsbEntityHostOrganism,
-    RcsbEntitySourceOrganism,
+    SourceOrganism,
 )
 from .aiohttp_session import get_session
 
@@ -26,7 +35,65 @@ _API_ENDPOINT = "https://data.rcsb.org/rest/v1/"
 The main API endpoint for PDB.
 """
 
+ProteinInfoTuple = Tuple[
+    ProteinNode,
+    List[HostOrganism],
+    List[SourceOrganism],
+    List[Database],
+    List[AnnotationNode],
+]
+"""
+Return type alias for `get_protein_entity`.
+"""
 
+DrugInfoTuple = Tuple[DrugNode, List[DrugbankTarget]]
+"""
+Return type alias for `get_drug_entity`.
+"""
+
+_REQUEST_TIMEOUT = aiohttp.ClientTimeout(total=15)
+"""
+Default timeout to use for requests.
+"""
+
+
+_RETRY = retry(
+    retry=(
+        retry_if_exception_type(asyncio.exceptions.TimeoutError)
+        | retry_if_exception_type(aiohttp.ClientConnectorError)
+        | retry_if_exception_type(aiohttp.ServerDisconnectedError)
+        # Retry HTTP errors, but only in cases where it's likely to help.
+        | retry_if_exception(
+            lambda e: isinstance(e, aiohttp.ClientResponseError)
+            and e.status != 404
+        )
+    ),
+    stop=stop_after_attempt(15),
+    wait=wait_exponential(multiplier=1, min=1, max=30),
+    after=after_log(logger, logging.WARNING),
+)
+
+
+async def _get_json(url: str) -> Any:
+    """
+    Performs a GET request for JSON content.
+
+    Args:
+        url: The URL to request.
+
+    Returns:
+        The JSON content.
+
+    """
+    logger.debug("Performing GET request to {}.", url)
+
+    session = await get_session()
+    async with session.get(url, timeout=_REQUEST_TIMEOUT) as response:
+        response.raise_for_status()
+        return await response.json()
+
+
+@_RETRY
 async def get_entry_list() -> List[str]:
     """
     Gets the list of entry IDs for all PDB entries. This must be scheduled as
@@ -37,13 +104,10 @@ async def get_entry_list() -> List[str]:
 
     """
     entries_url = urljoin(_API_ENDPOINT, "holdings/current/entry_ids")
-    logger.debug("Performing GET request to {}.", entries_url)
-
-    session = await get_session()
-    async with session.get(entries_url) as response:
-        return await response.json()
+    return await _get_json(entries_url)
 
 
+@_RETRY
 async def get_entry(entry_id: str) -> EntryNode:
     """
     Gets the information for a particular PDB entry.
@@ -56,11 +120,7 @@ async def get_entry(entry_id: str) -> EntryNode:
 
     """
     entry_url = urljoin(_API_ENDPOINT, f"core/entry/{entry_id}")
-    logger.debug("Performing GET request to {}.", entry_url)
-
-    session = await get_session()
-    async with session.get(entry_url) as response:
-        entry_json = await response.json()
+    entry_json = await _get_json(entry_url)
 
     # Extract citations.
     citations_json = entry_json.get("citation", [])
@@ -90,7 +150,8 @@ async def get_entry(entry_id: str) -> EntryNode:
     )
 
 
-async def get_drug_entity(cofactor_chem_comp_id: str):
+@_RETRY
+async def get_drug_entity(cofactor_chem_comp_id: str) -> DrugInfoTuple:
     """
 
     Args:
@@ -102,14 +163,10 @@ async def get_drug_entity(cofactor_chem_comp_id: str):
     drugbank_url = urljoin(
         _API_ENDPOINT, f"core/drugbank/{cofactor_chem_comp_id}"
     )
-    logger.debug("Performing GET request to {}.", drugbank_url)
+    drug_json = await _get_json(drugbank_url)
 
-    session = await get_session()
-    async with session.get(drugbank_url) as response:
-        entity_json = await response.json()
-
-    drugbank_info = entity_json["drugbank_info"]
-    drugbank_target = entity_json.get("drugbank_target", [])
+    drugbank_info = drug_json["drugbank_info"]
+    drugbank_target = drug_json.get("drugbank_target", [])
 
     drug_node = DrugNode(
         id=cofactor_chem_comp_id,
@@ -122,7 +179,6 @@ async def get_drug_entity(cofactor_chem_comp_id: str):
 
     drug_tar_list = []
     for target in drugbank_target:
-        # print(target["organism_common_name"])
         target_node = DrugbankTarget(
             interaction_type=target["interaction_type"],
             name=target["name"],
@@ -133,7 +189,10 @@ async def get_drug_entity(cofactor_chem_comp_id: str):
     return drug_node, drug_tar_list
 
 
-async def get_protein_entity(*, entry_id: str, entity_id: str):
+@_RETRY
+async def get_protein_entity(
+    *, entry_id: str, entity_id: str
+) -> ProteinInfoTuple:
     """
     Gets information for a specific protein by entity ID.
 
@@ -148,11 +207,7 @@ async def get_protein_entity(*, entry_id: str, entity_id: str):
     entity_url = urljoin(
         _API_ENDPOINT, f"core/polymer_entity/{entry_id}/" f"{entity_id}"
     )
-    logger.debug("Performing GET request to {}.", entity_url)
-
-    session = await get_session()
-    async with session.get(entity_url) as response:
-        entity_json = await response.json()
+    entity_json = await _get_json(entity_url)
 
     # Extract the relevant information.
     poly_info = entity_json["entity_poly"]
@@ -177,9 +232,6 @@ async def get_protein_entity(*, entry_id: str, entity_id: str):
             # This is a GO annotation.
             go_ids.append(annotation_id)
 
-    # Extract cofactor IDs.
-    cofactor_ids = [c["cofactor_resource_id"] for c in cofactors]
-
     # Extract cofactor chemical compound IDs.
     cofactor_chem_comp_id = []
     for c in cofactors:
@@ -188,26 +240,19 @@ async def get_protein_entity(*, entry_id: str, entity_id: str):
         ].startswith("DB"):
             cofactor_chem_comp_id.append(c["cofactor_chem_comp_id"])
 
-    drug_list = []
-    drug_tar_list_list = []
-    for cofactor in cofactor_chem_comp_id:
-        drug_node, drug_tar_list = await get_drug_entity(cofactor)
-        drug_list.append(drug_node)
-        drug_tar_list_list.append(drug_tar_list)
-
     prot_node = ProteinNode(
         id=entity_id,
-        name=poly_metadata["pdbx_description"],
+        name=poly_metadata.get("pdbx_description", "(no name)"),
         entry_id=entry_id,
         sequence=poly_info["pdbx_seq_one_letter_code_can"],
         annotations=go_ids,
-        cofactors=cofactor_ids,
+        cofactors=cofactor_chem_comp_id,
     )
 
     ho_list = []
     for host_organism in rcsb_entity_host_organism:
         if "ncbi_common_names" in host_organism:
-            host_organ_node = RcsbEntityHostOrganism(
+            host_organ_node = HostOrganism(
                 common_names=host_organism["ncbi_common_names"],
                 parent_scientific_name=host_organism[
                     "ncbi_parent_scientific_name"
@@ -221,7 +266,7 @@ async def get_protein_entity(*, entry_id: str, entity_id: str):
     so_list = []
     for source_organism in rcsb_entity_source_organism:
         if "ncbi_common_names" in source_organism:
-            sorce_organ_ndoe = RcsbEntitySourceOrganism(
+            source_organism_node = SourceOrganism(
                 common_names=source_organism["ncbi_common_names"],
                 parent_scientific_name=source_organism[
                     "ncbi_parent_scientific_name"
@@ -231,7 +276,7 @@ async def get_protein_entity(*, entry_id: str, entity_id: str):
                 provenance_source=source_organism["provenance_source"],
                 source_type=source_organism["source_type"],
             )
-            so_list.append(sorce_organ_ndoe)
+            so_list.append(source_organism_node)
 
     db_list = []
     for db in rcsb_polymer_entity_align:
@@ -257,6 +302,4 @@ async def get_protein_entity(*, entry_id: str, entity_id: str):
         so_list,
         db_list,
         anno_list,
-        drug_list,
-        drug_tar_list_list,
     )

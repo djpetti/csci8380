@@ -17,63 +17,69 @@ async def form_kg() -> None:
 
     """
     download_manager = DownloadManager()
+    # Keeps track of nodes that we've already added.
+    added_host_organisms = set()
+    added_source_organisms = set()
+    added_dbs = set()
+    added_annotations = set()
+    added_drugs = set()
 
     async for entry in download_manager.download_entries():
         await update_node(entry)
 
         # get each protein which belongs to a specific entry
         async for prot_entity in download_manager.download_entities(entry):
-            prot_list = []
             (
                 prot_node,
                 host_organ_node,
                 source_organ_node,
                 db_node,
                 anno_node,
-                drug_node,
-                drug_tar_list_list,
             ) = prot_entity
             await update_node(prot_node)
             await create_relationship(entry, prot_node, "HAS_PROTEIN")
 
             # get Rcsb Entity Host Organism
             for ho in host_organ_node:
-                await update_node(ho)
-                await create_relationship(prot_node, ho, "HOST_ON")
+                if ho.scientific_name not in added_host_organisms:
+                    await update_node(ho)
+                    await create_relationship(prot_node, ho, "HOST_ON")
+                    added_host_organisms.add(ho.scientific_name)
 
             # get Rcsb Entity Source Organism
             for so in source_organ_node:
-                await update_node(so)
-                await create_relationship(prot_node, so, "SOURCE_FROM")
+                if so.scientific_name not in added_source_organisms:
+                    await update_node(so)
+                    await create_relationship(prot_node, so, "SOURCE_FROM")
+                    added_source_organisms.add(so.scientific_name)
 
             # get Database
             for db in db_node:
-                await update_node(db)
-                await create_relationship(prot_node, db, "REFER_TO")
+                if db.reference_database_accession not in added_dbs:
+                    await update_node(db)
+                    await create_relationship(prot_node, db, "REFER_TO")
+                    added_dbs.add(db.reference_database_accession)
 
             # get Annotation
             for anno in anno_node:
-                await update_node(anno)
-                await create_relationship(prot_node, anno, "HAS_ANNOTATION")
+                if anno.id not in added_annotations:
+                    await update_node(anno)
+                    await create_relationship(
+                        prot_node, anno, "HAS_ANNOTATION"
+                    )
+                    added_annotations.add(anno.id)
 
             # get Drug and Drug Target
-            for index, drug in enumerate(drug_node):
+            async for drug, targets in download_manager.download_cofactors(
+                prot_node, exclude=added_drugs
+            ):
                 await update_node(drug)
                 await create_relationship(prot_node, drug, "HAS_COFACTOR")
-                for drug_tar in drug_tar_list_list[index]:
+                for drug_tar in targets:
                     await update_node(drug_tar)
                     await create_relationship(drug, drug_tar, "TARGET_TO")
 
-            # Create relationship between nodes have similar sequence
-            if len(prot_list) > 1:
-                for prev_prot in prot_list:
-                    await create_relationship(
-                        prev_prot, prot_node, "SIMILAR_SEQUENCE"
-                    )
-                    await create_relationship(
-                        prot_node, prev_prot, "SIMILAR_SEQUENCE"
-                    )
-            prot_list.append(prot_node)
+                added_drugs.update(prot_node.cofactors)
 
 
 def main():
