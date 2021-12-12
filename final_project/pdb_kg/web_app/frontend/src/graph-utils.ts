@@ -3,20 +3,8 @@
  */
 
 import Graph from "graphology";
-import {
-  AnnotationResponse,
-  EntryResponse,
-  NodeBase,
-  NodeLabel,
-  ProteinResponse,
-} from "typescript-axios";
-import {
-  getAnnotation,
-  getEntry,
-  getNeighbors,
-  getPath,
-  getProtein,
-} from "./api-client";
+import {AnnotationResponse, EntryResponse, NodeBase, NodeLabel, ProteinResponse,} from "typescript-axios";
+import {getAnnotation, getEntry, getNeighbors, getPath, getProtein,} from "./api-client";
 
 /**
  * Common attributes for all node interfaces.
@@ -34,6 +22,7 @@ const nodeColors: Map<NodeLabel, string> = new Map<NodeLabel, string>([
   [NodeLabel.PROTEIN, "#1EE649FF"],
   [NodeLabel.ANNOTATION, "#41E4E6FF"],
   [NodeLabel.ENTRY, "#024B2FFF"],
+  [NodeLabel.DRUG, "#23FBA8FF"],
 ]);
 
 /**
@@ -44,14 +33,24 @@ const nodeColors: Map<NodeLabel, string> = new Map<NodeLabel, string>([
 function addNodesToGraph(graph: Graph, nodes: Node[]) {
   const commonAttributes = { x: 0, y: 0, size: 10 };
   for (const node of nodes) {
-    if (graph.hasNode(node)) {
+    if (graph.hasNode(node.uuid)) {
       // We already have this node.
       continue;
     }
 
+    // Determine the label based on what attributes we have.
+    let label: string = "";
+    if (node.entryId && node.id) {
+      label = `${node.entryId}/${node.id}`;
+    } else if (node.entryId) {
+      label = node.entryId;
+    } else {
+      label = node.id as string;
+    }
+
     graph.addNode(node.uuid, {
       color: nodeColors.get(node.label as NodeLabel),
-      label: node.id ?? node.entryId,
+      label: label,
       ...commonAttributes,
     });
   }
@@ -168,8 +167,14 @@ export async function createNeighborhoodGraph(
       // The path might be empty if it's too long, and that's okay. In that case,
       // we just show disjoint graphs.
       connectedBackbone = false;
+      backboneNodes.push(pathStart, pathEnd);
+    } else {
+      backboneNodes.push(...path);
     }
-    backboneNodes.push(...nodes);
+  }
+  if (nodes.length == 1) {
+    // There is an edge-case when we only have a single node in the path.
+    backboneNodes.push(...nodes)
   }
 
   const backboneNodeDetails = await getAllNodeDetails(backboneNodes);
@@ -179,7 +184,7 @@ export async function createNeighborhoodGraph(
   if (connectedBackbone) {
     // Add edges between all the backbone nodes.
     for (let i = 0; i < backboneNodes.length - 1; ++i) {
-      graph.addEdge(backboneNodes[i], backboneNodes[i + 1]);
+      graph.addEdge(backboneNodes[i].uuid, backboneNodes[i + 1].uuid);
     }
   }
 
@@ -191,7 +196,9 @@ export async function createNeighborhoodGraph(
     addNodesToGraph(graph, [...neighborDetails]);
     // Add edges from the root to each neighbor.
     for (const neighbor of neighbors) {
-      graph.addEdge(node.uuid, neighbor.uuid);
+      if (!graph.hasEdge(node.uuid, neighbor.uuid)) {
+        graph.addEdge(node.uuid, neighbor.uuid);
+      }
     }
   }
 

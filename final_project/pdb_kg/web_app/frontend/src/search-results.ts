@@ -4,12 +4,11 @@ import "./protein-selector";
 import "./protein-details";
 import { property, query } from "lit/decorators.js";
 import { GraphVisualization } from "./graph-visualization";
-import { buildGraph } from "./graph-utils";
+import {buildGraph, createNeighborhoodGraph} from "./graph-utils";
 import { ANNOTATIONS, ENTRIES, PROTEINS } from "./example_data";
-import { ProteinSelector, SelectionChangedEvent } from "./protein-selector";
+import { ProteinSelector } from "./protein-selector";
 import { ProteinResponse } from "typescript-axios";
 import { ProteinDetails } from "./protein-details";
-import { stringify } from "ts-jest/dist/utils/json";
 
 /**
  * Represents the result of a search.
@@ -129,11 +128,23 @@ export class SearchResults extends LitElement {
   }
 
   /**
+   * Updates the graph visualization to contain the selected nodes.
+   * @param {ProteinResponse[]} selectedProteins The currently-selected proteins.
+   * @private
+   */
+  private updateGraphVisualization(selectedProteins: ProteinResponse[]) {
+    createNeighborhoodGraph(selectedProteins).then(graph => this._graphVis.graph = graph);
+  }
+
+  /**
    * Updates the selected proteins in the UI based on the user's selections.
    * @param {ProteinResponse[]} selectedProteins The proteins that the user selected.
    * @private
    */
   private updateSelectedProteins(selectedProteins: ProteinResponse[]) {
+    // Update the graph visualization.
+    this.updateGraphVisualization(selectedProteins);
+
     // Add protein details.
     for (const protein of selectedProteins) {
       if (this._selectedProteinsToElement.has(protein.uuid as string)) {
@@ -216,6 +227,10 @@ export class SearchResults extends LitElement {
 
       this._searchResultToElement.delete(result);
     }
+
+    // It's possible we removed a card with selected proteins, so we need to
+    // update the selections again.
+    this.updateSelectedProteins(this.getAllSelectedProteins());
   }
 
   /**

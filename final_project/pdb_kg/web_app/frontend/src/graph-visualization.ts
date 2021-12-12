@@ -53,11 +53,11 @@ export class GraphVisualization extends LitElement {
   }
 
   /**
-   * Draws the graph, setting up the renderer and all the interaction callbacks.
-   * This should only have to be called after the graph is updated.
+   * Draws the graph initially, setting up the renderer and all the interaction callbacks.
+   * This should only have to be called after the graph is first updated.
    * @private
    */
-  private drawGraph() {
+  private initGraph() {
     // Draw the graph.
     this._renderer = new Sigma(this.graph, this._graphContainer);
 
@@ -69,12 +69,59 @@ export class GraphVisualization extends LitElement {
   }
 
   /**
+   * Updates an existing graph to match a new one.
+   * @private
+   */
+  private updateGraph() {
+    // Draw the new graph.
+    // Update the nodes.
+    this._renderer.getGraph().forEachNode(nodeId => {
+      if (!this.graph.hasNode(nodeId)) {
+        // This node has been removed.
+        this._renderer.getGraph().dropNode(nodeId);
+      }
+    });
+    this.graph.forEachNode((nodeId, attributes) => {
+      if (!this._renderer.getGraph().hasNode(nodeId)) {
+        // This node has been added.
+        this._renderer.getGraph().addNode(nodeId, attributes);
+      }
+    });
+
+    // Update the edges.
+    this._renderer.getGraph().forEachEdge((edgeId) => {
+      if (!this.graph.hasEdge(edgeId)) {
+        // This edge has been removed.
+        this._renderer.getGraph().dropEdge(edgeId);
+      }
+    });
+    this.graph.forEachEdge((edgeId, attributes, source, target) => {
+      if (!this._renderer.getGraph().hasEdge(edgeId)) {
+        // This edge has been added.
+        this._renderer.getGraph().addEdge(source, target, attributes);
+      }
+    });
+
+    // Force a layout update.
+    random.assign(this._renderer.getGraph());
+  }
+
+  /**
+   * @inheritDoc
+   */
+  protected firstUpdated(changedProperties: PropertyValues) {
+    if (changedProperties.has("graph")) {
+      // Draw the new graph.
+      this.initGraph();
+    }
+  }
+
+  /**
    * @inheritDoc
    */
   protected updated(changedProperties: PropertyValues) {
     if (changedProperties.has("graph")) {
-      // Draw the new graph.
-      this.drawGraph();
+      this.updateGraph();
     }
   }
 }
