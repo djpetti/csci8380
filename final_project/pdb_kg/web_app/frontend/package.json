@@ -71,6 +71,7 @@
     "lit": "^2.0.2",
     "materialize-css": "^1.0.0-rc.2",
     "sigma": "^2.0.0",
-    "typescript-axios": "file:gen/api"
+    "typescript-axios": "file:gen/api",
+    "typescript-lru-cache": "^1.2.3"
   }
 }

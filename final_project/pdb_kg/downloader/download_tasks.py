@@ -25,7 +25,6 @@ from ..data_model import (
     EntryNode,
     HostOrganism,
     ProteinNode,
-    Publication,
     SourceOrganism,
 )
 from .aiohttp_session import get_session
@@ -127,19 +126,20 @@ async def get_entry(entry_id: str) -> EntryNode:
     citations = []
     for citation in citations_json:
         title = citation.get("title")
-        authors = citation.get("authors")
+        authors = citation.get("rcsb_authors")
         if title is None or authors is None:
             # Some citations don't have a title or authors; these aren't
             # especially useful.
             continue
 
-        citations.append(
-            Publication(
-                title=title,
-                authors=authors,
-                year=citation.get("year"),
-            )
-        )
+        # TODO (danielp): Support publications as a separate node type.
+        # citations.append(
+        #     Publication(
+        #         title=title,
+        #         authors=authors,
+        #         year=citation.get("year", 0),
+        #     )
+        # )
 
     # Extract other info.
     container_ids = entry_json["rcsb_entry_container_identifiers"]
@@ -280,11 +280,19 @@ async def get_protein_entity(
 
     db_list = []
     for db in rcsb_polymer_entity_align:
-        db_node = Database(
-            reference_database_accession=db["reference_database_accession"],
-            reference_database_name=db["reference_database_name"],
-        )
-        db_list.append(db_node)
+        db_access = db.get("reference_database_accession")
+        db_name = db.get("reference_database_name")
+
+        if db_access is not None and db_name is not None:
+            db_node = Database(
+                reference_database_accession=db_access,
+                reference_database_name=db_name,
+            )
+            db_list.append(db_node)
+        else:
+            logger.warning(
+                "Received malformed DB data: {}", rcsb_polymer_entity_align
+            )
 
     anno_list = []
     for annotation in annotations:

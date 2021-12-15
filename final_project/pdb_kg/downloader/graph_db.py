@@ -4,7 +4,7 @@ Contains low-level functions for interfacing with the graph database.
 import asyncio
 import re
 from functools import singledispatch
-from typing import Any, List, Set, Tuple
+from typing import Any, Dict, Iterable, List, Optional, Set, Tuple, Union
 from uuid import UUID
 
 from loguru import logger
@@ -47,7 +47,12 @@ def _(value: str) -> str:
 
 @_to_cypher.register
 def _(value: int) -> str:
-    return str(value)
+    return _to_cypher(str(value))
+
+
+@_to_cypher.register(type(None))
+def _(value: type(None)) -> str:
+    return "null"
 
 
 @_to_cypher.register
@@ -74,32 +79,62 @@ def _(value: Set[Any]) -> str:
     return _to_cypher(list(value))
 
 
+@_to_cypher.register(dict)
+def _(value: Dict[str, Any], convert_values: bool = True) -> str:
+    """
+    Args:
+        value: The dictionary to convert.
+        convert_values: Whether to also convert the dictionary values.
+            Otherwise, they will be left the way they are.
+
+    Returns:
+        The corresponding cypher mapping.
+
+    """
+    # Create the mapping.
+    if convert_values:
+        cypher_attributes = {k: _to_cypher(v) for k, v in value.items()}
+    else:
+        cypher_attributes = value
+
+    cypher_pairs = [": ".join(item) for item in cypher_attributes.items()]
+    mapping_items = ", ".join(cypher_pairs)
+    return f"{{{mapping_items}}}"
+
+
 @_to_cypher.register
-def _(value: NodeBase, include_uuid: bool = False) -> str:
+def _(
+    value: NodeBase,
+    exclude_properties: Iterable[str] = ("uuid",),
+    include_properties: Optional[Iterable[str]] = None,
+) -> str:
     """
     Args:
         value: The node to convert.
-        include_uuid: If true, include the UUID in the resulting structure.
-            Otherwise, it will be left out.
+        exclude_properties: Properties to exclude when serializing the
+            structure. By default, it excludes the UUID.
+        include_properties: Properties to include when serializing the
+            structure. If provided, only these properties will be included.
 
     Returns:
         The Cypher mapping corresponding to this node structure.
 
     """
     exclude_set = {"label"}
-    if not include_uuid:
-        exclude_set.add("uuid")
-    node_attributes = value.dict(exclude=exclude_set)
+    exclude_set.update(exclude_properties)
+    if include_properties:
+        node_attributes = value.dict(include=frozenset(include_properties))
+    else:
+        node_attributes = value.dict(exclude=exclude_set)
 
     # Create the mapping.
-    cypher_attributes = {k: _to_cypher(v) for k, v in node_attributes.items()}
-    cypher_pairs = [": ".join(item) for item in cypher_attributes.items()]
-    mapping_items = ", ".join(cypher_pairs)
-    return f"{{{mapping_items}}}"
+    return _to_cypher(node_attributes)
 
 
 def _update_entry_transaction(
-    transaction: Transaction, entry: EntryNode
+    transaction: Transaction,
+    entry: EntryNode,
+    key: Iterable[str] = ("uuid",),
 ) -> None:
     """
     Transaction function that updates (or creates) an entry node.
@@ -107,12 +142,55 @@ def _update_entry_transaction(
     Args:
         transaction: The transaction object.
         entry: The entry information.
+        key: The name of the attribute(s) to use as a key to determine whether
+            the node exists or not. By default, it uses the UUID.
 
     """
+    # Generate the key portion of the query and the substitutions.
+    key_dict = {}
+    key_substitutions = {}
+    for index, attribute in enumerate(key):
+        placeholder = f"key_{index}"
+        key_dict[attribute] = f"${placeholder}"
+        key_substitutions[placeholder] = _to_cypher(getattr(entry, attribute))
+
+    query = (
+        f"MERGE (entry:{entry.label.name} "
+        f"{_to_cypher(key_dict, convert_values=False)}) SET "
+        f"entry += {_to_cypher(entry, exclude_properties=(key,))}"
+    )
+    logger.debug("Running query: {}", query)
+
     transaction.run(
-        f"""MERGE (entry:{entry.label.name} {{uuid: $uuid}})"""
-        f"""SET entry += {_to_cypher(entry)}""",
-        uuid=str(entry.uuid),
+        query,
+        **key_substitutions,
+    )
+
+
+def _create_index_transaction(
+    transaction: Transaction, *, label: NodeLabel, properties: Iterable[str]
+) -> None:
+    """
+    Transaction function that creates a new index, if it does not already
+    exist.
+
+    Args:
+        transaction: The transaction object.
+        label: The label for the node type we are indexing.
+        properties: The names of the properties to use to create the index.
+
+    """
+    logger.debug(
+        "Creating an index for {} on properties {}.", label.name, properties
+    )
+
+    # Generate the properties tuple.
+    properties_str = [f"node.{p}" for p in properties]
+    properties_str = ", ".join(properties_str)
+
+    transaction.run(
+        f"CREATE INDEX IF NOT EXISTS FOR "
+        f"(node:{label.name}) ON ({properties_str})"
     )
 
 
@@ -174,7 +252,9 @@ def run_in_thread(fn, *args):
     return asyncio.get_running_loop().run_in_executor(None, fn, *args)
 
 
-async def update_node(entry: NodeBase) -> None:
+async def update_node(
+    entry: NodeBase, key: Union[str, Iterable[str]] = "uuid"
+) -> None:
     """
     Updates or creates a particular node.
 
@@ -183,14 +263,42 @@ async def update_node(entry: NodeBase) -> None:
 
     Args:
         entry: The entry information.
+        key: The name of the attribute to use as a key to determine whether
+            the node exists or not. By default, it uses the UUID.
 
     """
+    # Normalize the key.
+    if isinstance(key, str):
+        key = (key,)
 
     def _update_entry_sync(_entry: EntryNode) -> None:
         with get_driver().session() as session:
-            session.write_transaction(_update_entry_transaction, _entry)
+            session.write_transaction(
+                _update_entry_transaction, _entry, key=key
+            )
 
     await run_in_thread(_update_entry_sync, entry)
+
+
+async def create_index(*, label: NodeLabel, properties: Iterable[str]) -> None:
+    """
+    Create a new index, if it does not already exist.
+
+    Args:
+        label: The label for the node type we are indexing.
+        properties: The names of the properties to use to create the index.
+
+    """
+
+    def _create_index_sync(
+        _label: NodeLabel, _properties: Iterable[str]
+    ) -> None:
+        with get_driver().session() as session:
+            session.write_transaction(
+                _create_index_transaction, label=_label, properties=_properties
+            )
+
+    await run_in_thread(_create_index_sync, label, properties)
 
 
 def is_pdb_entry_id(string: str) -> bool:
@@ -303,8 +411,7 @@ async def get_fuzzy_entries(string: str) -> List[UUID]:
         All proteins and annotations which contain this string in their id
     """
     query = (
-        f"MATCH(g) WHERE g.entry_id CONTAINS '{string}' OR g.id "
-        f"CONTAINS '{string}' RETURN g"
+        f"MATCH(g:PROTEIN) WHERE g.name CONTAINS '{string}' RETURN g LIMIT 25"
     )
     query_res = await run_in_thread(run_read_query, query)
     query_res = [x.get("uuid") for x in query_res]
@@ -332,8 +439,7 @@ async def get_query(query_string: str) -> List[UUID]:
         Results corresponding to what the query string is most likely referring
         to
     """
-    logger.debug(query_string)
-    res = []
+    logger.debug("Got query: {}", query_string)
     if is_pdb_entry_id(query_string):
         res = await get_pdb_entry_by_name(query_string)
     elif is_go_id(query_string):
@@ -531,6 +637,7 @@ async def get_path(start: UUID, end: UUID, max_length: int) -> List[NodeBase]:
         f'(a {{uuid: "{start}"}}), '
         f'(b {{uuid: "{end}"}}), '
         f"p=shortestPath((a)-[*]-(b)) "
+        f"WITH p "
         f"WHERE length(p) < {max_length} "
         f"RETURN p"
     )
@@ -552,7 +659,7 @@ async def do_query(cql: str) -> None:
         session.run(cql)
 
 
-async def create_relationship(e1: object, e2: object, relation: str):
+async def create_relationship(e1: NodeBase, e2: NodeBase, relation: str):
     """
     Create a relationship between two existed nodes(entities) by using Neo4J
     query sentence.

@@ -8,10 +8,13 @@ import {
   NodeLabel,
   ProteinResponse,
 } from "typescript-axios";
+import { LRUCache } from "typescript-lru-cache";
 
 const api = new DefaultApi(
   new Configuration({ basePath: "http://localhost:8000" })
 );
+
+const cache = new LRUCache<string, any>();
 
 /**
  * Used for translating raw node labels to enum values. Must be kept in-sync
@@ -40,6 +43,19 @@ function convertNode<NodeType extends NodeBase>(node: NodeType): NodeType {
   // Fix the enums.
   converted.label = NODE_LABEL_TO_ENUM.get(converted.label as string);
   return converted;
+}
+
+/**
+ * Checks if node info is in the cache and returns it if it is.
+ * @param {string} nodeId: The ID of the node.
+ * @return {any | undefined} The node info if present, otherwise null.
+ */
+function cacheParameters(nodeId: string): any | null {
+  if (cache.has(nodeId)) {
+    return cache.get(nodeId);
+  }
+
+  return null;
 }
 
 /**
@@ -115,6 +131,11 @@ export async function getNeighbors(nodeId: string): Promise<NodeBase[]> {
  * @return {ProteinResponse} The protein details.
  */
 export async function getProtein(proteinId: string): Promise<ProteinResponse> {
+  const cached = cacheParameters(proteinId);
+  if (cached) {
+    return cached;
+  }
+
   const response = await api
     .getProteinRequestGetProteinProteinIdGet(proteinId)
     .catch(function (error) {
@@ -122,7 +143,9 @@ export async function getProtein(proteinId: string): Promise<ProteinResponse> {
       throw error;
     });
 
-  return convertNode(response.data);
+  const converted = convertNode(response.data);
+  cache.set(proteinId, converted);
+  return converted;
 }
 
 /**
@@ -133,6 +156,11 @@ export async function getProtein(proteinId: string): Promise<ProteinResponse> {
 export async function getAnnotation(
   annotationId: string
 ): Promise<AnnotationResponse> {
+  const cached = cacheParameters(annotationId);
+  if (cached) {
+    return cached;
+  }
+
   const response = await api
     .getAnnotationRequestGetAnnotationAnnotationIdGet(annotationId)
     .catch(function (error) {
@@ -140,7 +168,9 @@ export async function getAnnotation(
       throw error;
     });
 
-  return convertNode(response.data);
+  const converted = convertNode(response.data);
+  cache.set(annotationId, converted);
+  return converted;
 }
 
 /**
@@ -149,6 +179,11 @@ export async function getAnnotation(
  * @return {ProteinResponse} The entry details.
  */
 export async function getEntry(entryId: string): Promise<EntryResponse> {
+  const cached = cacheParameters(entryId);
+  if (cached) {
+    return cached;
+  }
+
   const response = await api
     .getEntryGetEntryEntryIdGet(entryId)
     .catch(function (error) {
@@ -156,5 +191,7 @@ export async function getEntry(entryId: string): Promise<EntryResponse> {
       throw error;
     });
 
-  return convertNode(response.data);
+  const converted = convertNode(response.data);
+  cache.set(entryId, converted);
+  return converted;
 }

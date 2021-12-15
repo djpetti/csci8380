@@ -3,8 +3,20 @@
  */
 
 import Graph from "graphology";
-import {AnnotationResponse, EntryResponse, NodeBase, NodeLabel, ProteinResponse,} from "typescript-axios";
-import {getAnnotation, getEntry, getNeighbors, getPath, getProtein,} from "./api-client";
+import {
+  AnnotationResponse,
+  EntryResponse,
+  NodeBase,
+  NodeLabel,
+  ProteinResponse,
+} from "typescript-axios";
+import {
+  getAnnotation,
+  getEntry,
+  getNeighbors,
+  getPath,
+  getProtein,
+} from "./api-client";
 
 /**
  * Common attributes for all node interfaces.
@@ -174,7 +186,7 @@ export async function createNeighborhoodGraph(
   }
   if (nodes.length == 1) {
     // There is an edge-case when we only have a single node in the path.
-    backboneNodes.push(...nodes)
+    backboneNodes.push(...nodes);
   }
 
   const backboneNodeDetails = await getAllNodeDetails(backboneNodes);

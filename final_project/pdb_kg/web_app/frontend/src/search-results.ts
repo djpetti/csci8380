@@ -4,7 +4,7 @@ import "./protein-selector";
 import "./protein-details";
 import { property, query } from "lit/decorators.js";
 import { GraphVisualization } from "./graph-visualization";
-import {buildGraph, createNeighborhoodGraph} from "./graph-utils";
+import { buildGraph, createNeighborhoodGraph } from "./graph-utils";
 import { ANNOTATIONS, ENTRIES, PROTEINS } from "./example_data";
 import { ProteinSelector } from "./protein-selector";
 import { ProteinResponse } from "typescript-axios";
@@ -133,7 +133,9 @@ export class SearchResults extends LitElement {
    * @private
    */
   private updateGraphVisualization(selectedProteins: ProteinResponse[]) {
-    createNeighborhoodGraph(selectedProteins).then(graph => this._graphVis.graph = graph);
+    createNeighborhoodGraph(selectedProteins).then(
+      (graph) => (this._graphVis.graph = graph)
+    );
   }
 
   /**

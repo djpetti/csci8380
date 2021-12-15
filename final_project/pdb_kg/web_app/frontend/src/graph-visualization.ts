@@ -75,7 +75,7 @@ export class GraphVisualization extends LitElement {
   private updateGraph() {
     // Draw the new graph.
     // Update the nodes.
-    this._renderer.getGraph().forEachNode(nodeId => {
+    this._renderer.getGraph().forEachNode((nodeId) => {
       if (!this.graph.hasNode(nodeId)) {
         // This node has been removed.
         this._renderer.getGraph().dropNode(nodeId);
